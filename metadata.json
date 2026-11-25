@@ -1,0 +1,8 @@
+{
+  "name": "두뇌 서바이벌 — 한국어 미니게임 허브",
+  "description": "AI 유사어 추리 게임 '말결'과 '국기 기억력 테스트'를 즐길 수 있는 한국어 두뇌 서바이벌 미니게임 허브입니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
