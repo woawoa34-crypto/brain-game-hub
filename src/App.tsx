@@ -3,6 +3,7 @@ import { Home, Volume2, VolumeX } from 'lucide-react';
 import { FlagMemoryGame } from './components/FlagMemoryGame';
 import { LobbyScreen } from './components/LobbyScreen';
 import { RulesModal } from './components/RulesModal';
+import { WallBadukGame } from './components/WallBadukGame';
 import { WordChainGame } from './components/WordChainGame';
 import type { ActiveGame } from './types';
 import { soundEngine } from './utils/sound';
@@ -72,7 +73,7 @@ export default function App() {
           </button>
 
           {/* Zone 2: Clean single-line navigation links */}
-          <nav aria-label="허브 탐색" className="flex items-center gap-4 text-sm font-medium text-slate-400 sm:gap-6">
+          <nav aria-label="허브 탐색" className="flex items-center gap-4 text-sm font-medium text-slate-400 sm:gap-5">
             <button
               type="button"
               onClick={() => setActiveGame('WORD_GAME')}
@@ -90,6 +91,15 @@ export default function App() {
               }`}
             >
               국기 기억력
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveGame('WALLBADUK_GAME')}
+              className={`hidden sm:inline-block py-1.5 transition-colors whitespace-nowrap shrink-0 ${
+                activeGame === 'WALLBADUK_GAME' ? 'text-amber-300' : 'hover:text-slate-100'
+              }`}
+            >
+              벽바둑 2
             </button>
             <button
               type="button"
@@ -156,6 +166,10 @@ export default function App() {
 
         {activeGame === 'FLAG_GAME' && (
           <FlagMemoryGame onBackToLobby={() => setActiveGame('LOBBY')} />
+        )}
+
+        {activeGame === 'WALLBADUK_GAME' && (
+          <WallBadukGame onBackToLobby={() => setActiveGame('LOBBY')} />
         )}
       </div>
 

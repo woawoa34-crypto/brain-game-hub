@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowRight, Check, Eye, EyeOff, Flag, KeyRound, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowRight, Check, Eye, EyeOff, Flag, Grid3x3, KeyRound, Sparkles, Trash2 } from 'lucide-react';
 import type { ActiveGame } from '../types';
 
 interface LobbyScreenProps {
@@ -49,18 +49,18 @@ export function LobbyScreen({
           한국어 두뇌 서바이벌 미니게임 허브
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-50 sm:text-5xl [text-wrap:balance]">
-          어휘 추리와 순간 기억력에 도전하세요
+          어휘 추리와 순간 기억력, 전략 대결에 도전하세요
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-slate-400 sm:text-base [text-wrap:balance]">
-          AI 의미 벡터로 숨겨진 단어를 추적하는 추리 게임과 70개국 국기를 빠르게 기억해내는
-          시각 기억력 테스트를 한 곳에서 즐길 수 있습니다.
+          AI 의미 벡터 단어 추리, 70개국 국기 기억력 테스트, 7×7 영역 분리 전략 보드게임까지
+          세 가지 두뇌 서바이벌 게임을 한 곳에서 즐길 수 있습니다.
         </p>
       </section>
 
-      {/* Two Game Selection Cards */}
+      {/* Three Game Selection Cards */}
       <section
         aria-label="미니게임 선택"
-        className="mt-10 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
+        className="mt-10 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3"
       >
         {/* Game 1: 말결 */}
         <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7">
@@ -69,7 +69,7 @@ export function LobbyScreen({
               <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>게임 1 · Gemini 임베딩 추리</span>
             </div>
-            <h2 className="mt-3 text-2xl font-bold text-slate-50">
+            <h2 className="mt-3 text-xl font-bold text-slate-50">
               말결 (AI 유사어 추리)
             </h2>
             <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
@@ -106,7 +106,7 @@ export function LobbyScreen({
               <Flag className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>게임 2 · 순간 시각 기억력</span>
             </div>
-            <h2 className="mt-3 text-2xl font-bold text-slate-50">
+            <h2 className="mt-3 text-xl font-bold text-slate-50">
               국기 기억력 테스트
             </h2>
             <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
@@ -128,6 +128,40 @@ export function LobbyScreen({
               className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 whitespace-nowrap"
             >
               <span>국기 기억력 테스트 시작</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </article>
+
+        {/* Game 3: 벽바둑 2 */}
+        <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7 md:col-span-2 lg:col-span-1">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-medium text-amber-300">
+              <Grid3x3 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>게임 3 · 영역 분리 전략</span>
+            </div>
+            <h2 className="mt-3 text-xl font-bold text-slate-50">
+              벽바둑 2
+            </h2>
+            <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
+              7×7 보드 위에서 사각·원형 말을 움직이고 벽을 설치해 영역을 분리하세요.
+              1라운드 3인전(벽 부수기 1회)과 2라운드 1:1 결승전, 로컬 멀티 및 AI 봇을 지원합니다.
+            </p>
+          </div>
+
+          <div className="mt-7 space-y-4">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+              <span>로컬 대전 & AI 봇</span>
+              <span aria-hidden="true" className="text-slate-600">·</span>
+              <span className="text-amber-300/90">API 키 없이 바로 실행</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onSelectGame('WALLBADUK_GAME')}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 whitespace-nowrap"
+            >
+              <span>벽바둑 2 시작하기</span>
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>

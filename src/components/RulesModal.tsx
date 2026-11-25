@@ -76,6 +76,15 @@ export function RulesModal({ open, onClose }: RulesModalProps) {
               5×5 배열(25개 국기)에서 방금 본 국기 5개를 정확히 찾아내면 됩니다.
             </p>
           </div>
+
+          <div className="border-t border-slate-800 pt-5">
+            <h3 className="font-semibold text-amber-300">게임 3. 벽바둑 2 (영역 분리 전략)</h3>
+            <p className="mt-1 text-slate-400">
+              7×7 보드에서 사각 말(■: 직선 1~2칸)과 원형 말(●: 1칸 또는 90도 꺾어 2칸)을 이동한
+              뒤 도착한 칸의 빈 경계에 벽을 세웁니다. 모든 플레이어의 말이 서로 다른 구역으로 완전히
+              분리되면 종료되며, 내 말이 속한 독립 구역 칸 수의 합계(중복 제외)로 승패를 겨룹니다.
+            </p>
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end">
