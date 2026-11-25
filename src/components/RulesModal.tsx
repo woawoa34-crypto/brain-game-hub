@@ -85,6 +85,23 @@ export function RulesModal({ open, onClose }: RulesModalProps) {
               분리되면 종료되며, 내 말이 속한 독립 구역 칸 수의 합계(중복 제외)로 승패를 겨룹니다.
             </p>
           </div>
+
+          <div className="border-t border-slate-800 pt-5">
+            <h3 className="font-semibold text-violet-300">게임 4. 블라인드 미로 탈출</h3>
+            <p className="mt-1 text-slate-400">
+              6×6 또는 7×7 무작위 미로를 3초 또는 5초 동안 기억한 뒤, 벽과 출구(E)가 가려진 상태에서
+              바라보는 시점 기준의 [좌회전 90°], [앞으로 1칸 전진], [우회전 90°]만으로 탈출합니다.
+              솔로 타임어택과 2인 턴제 레이스(1턴 2행동)를 즐길 수 있습니다.
+            </p>
+          </div>
+
+          <div className="border-t border-slate-800 pt-5">
+            <h3 className="font-semibold text-cyan-300">게임 5. 그라데이션 컵 심리전</h3>
+            <p className="mt-1 text-slate-400">
+              1·7번이 가장 짙고 4번이 가장 옅은 대칭 색상의 7개 컵에 0~9 숫자를 오름차순(합계 30 이하)으로
+              숨긴 뒤, 7라운드 동안 중앙 가림막에 놓인 상대 컵의 색상만 보고 숫자를 추리해 승부합니다.
+            </p>
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end">

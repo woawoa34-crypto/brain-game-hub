@@ -1,46 +1,17 @@
-import { useState, type FormEvent } from 'react';
-import { ArrowRight, Check, Eye, EyeOff, Flag, Grid3x3, KeyRound, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowRight, Compass, Flag, Grid3x3, Layers2, Sparkles } from 'lucide-react';
 import type { ActiveGame } from '../types';
 
 interface LobbyScreenProps {
   savedApiKey: string;
   hasServerKey: boolean;
   onSelectGame: (game: Exclude<ActiveGame, 'LOBBY'>) => void;
-  onSaveApiKey: (key: string) => void;
-  onClearApiKey: () => void;
 }
 
 export function LobbyScreen({
   savedApiKey,
   hasServerKey,
   onSelectGame,
-  onSaveApiKey,
-  onClearApiKey,
 }: LobbyScreenProps) {
-  const [keyInput, setKeyInput] = useState(savedApiKey);
-  const [showKey, setShowKey] = useState(false);
-  const [saveNotice, setSaveNotice] = useState<string | null>(null);
-
-  const handleSave = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = keyInput.trim();
-    if (!trimmed) {
-      onClearApiKey();
-      setSaveNotice('저장된 API 키를 삭제했습니다.');
-      window.setTimeout(() => setSaveNotice(null), 2500);
-      return;
-    }
-    onSaveApiKey(trimmed);
-    setSaveNotice('Gemini API 키가 브라우저(localStorage)에 저장되었습니다.');
-    window.setTimeout(() => setSaveNotice(null), 2500);
-  };
-
-  const handleClear = () => {
-    setKeyInput('');
-    onClearApiKey();
-    setSaveNotice('저장된 API 키를 삭제했습니다.');
-    window.setTimeout(() => setSaveNotice(null), 2500);
-  };
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
@@ -49,18 +20,18 @@ export function LobbyScreen({
           한국어 두뇌 서바이벌 미니게임 허브
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-50 sm:text-5xl [text-wrap:balance]">
-          어휘 추리와 순간 기억력, 전략 대결에 도전하세요
+          어휘 추리와 순간 기억력, 전략 심리전에 도전하세요
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-slate-400 sm:text-base [text-wrap:balance]">
-          AI 의미 벡터 단어 추리, 70개국 국기 기억력 테스트, 7×7 영역 분리 전략 보드게임까지
-          세 가지 두뇌 서바이벌 게임을 한 곳에서 즐길 수 있습니다.
+          말결, 국기 기억력 테스트, 벽바둑 2, 블라인드 미로 탈출, 그라데이션 컵 심리전까지
+          다섯 가지 두뇌 서바이벌 게임을 한 곳에서 즐길 수 있습니다.
         </p>
       </section>
 
-      {/* Three Game Selection Cards */}
+      {/* Five Game Selection Cards */}
       <section
         aria-label="미니게임 선택"
-        className="mt-10 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3"
+        className="mt-10 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
       >
         {/* Game 1: 말결 */}
         <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7">
@@ -134,7 +105,7 @@ export function LobbyScreen({
         </article>
 
         {/* Game 3: 벽바둑 2 */}
-        <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7 md:col-span-2 lg:col-span-1">
+        <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7">
           <div>
             <div className="flex items-center gap-2 text-xs font-medium text-amber-300">
               <Grid3x3 className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -166,87 +137,73 @@ export function LobbyScreen({
             </button>
           </div>
         </article>
-      </section>
 
-      {/* Bottom Gemini API Key localStorage Configuration */}
-      <section
-        id="api-key-settings"
-        aria-label="Gemini API 키 설정"
-        className="mt-10 rounded-2xl border border-slate-800 bg-[#131926]/80 p-5 sm:p-6"
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        {/* Game 4: 블라인드 미로 탈출 */}
+        <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7">
           <div>
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-              <KeyRound className="h-4 w-4 text-sky-400" aria-hidden="true" />
-              <span>개인 Gemini API 키 설정</span>
+            <div className="flex items-center gap-2 text-xs font-medium text-violet-300">
+              <Compass className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>게임 4 · 인지 지도 & 시점 회전</span>
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-slate-400">
-              입력한 키는 브라우저의 <span className="font-mono text-slate-300">localStorage</span>에만
-              저장되며, 게임 1(말결) 실행 시 서버 요청 헤더로 안전하게 전달됩니다.
+            <h2 className="mt-3 text-xl font-bold text-slate-50">
+              블라인드 미로 탈출
+            </h2>
+            <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
+              3~5초간 공개되는 6×6·7×7 미로를 기억한 뒤, 어둠 속에서 [좌회전 90°]·[전진]·[우회전 90°]만으로
+              출구를 찾으세요. 솔로 타임어택과 2인 턴제 레이스를 지원합니다.
             </p>
           </div>
 
-          <div className="text-xs font-medium text-slate-400 shrink-0">
-            {savedApiKey ? (
-              <span className="text-emerald-400">개인 API 키 저장됨</span>
-            ) : hasServerKey ? (
-              <span className="text-sky-400">서버 기본 키 활성화됨</span>
-            ) : (
-              <span className="text-amber-300">API 키 미설정</span>
-            )}
-          </div>
-        </div>
+          <div className="mt-7 space-y-4">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+              <span>솔로 타임어택 & 2인 레이스</span>
+              <span aria-hidden="true" className="text-slate-600">·</span>
+              <span className="text-violet-300/90">API 키 없이 바로 실행</span>
+            </div>
 
-        <form onSubmit={handleSave} className="mt-4 flex flex-col gap-2.5 sm:flex-row">
-          <div className="relative flex-1">
-            <label htmlFor="lobby-gemini-api-key" className="sr-only">
-              Gemini API 키
-            </label>
-            <input
-              id="lobby-gemini-api-key"
-              type={showKey ? 'text' : 'password'}
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="AIza... 형태의 본인 Gemini API 키 입력 (선택 사항)"
-              autoComplete="off"
-              className="min-h-11 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] py-2.5 pl-4 pr-11 font-mono text-sm text-slate-100 placeholder:font-sans placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
-            />
             <button
               type="button"
-              onClick={() => setShowKey((prev) => !prev)}
-              aria-label={showKey ? 'API 키 숨기기' : 'API 키 보기'}
-              className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-sky-400"
+              onClick={() => onSelectGame('BLIND_MAZE_GAME')}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-400 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-violet-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 whitespace-nowrap"
             >
-              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <span>블라인드 미로 시작하기</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
+        </article>
 
-          <div className="flex items-center gap-2 shrink-0">
+        {/* Game 5: 그라데이션 컵 심리전 */}
+        <article className="flex flex-col justify-between gap-6 rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7 md:col-span-2 md:flex-row md:items-center">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 text-xs font-medium text-cyan-300">
+              <Layers2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>게임 5 · 7개의 컵 색상 심리전</span>
+            </div>
+            <h2 className="mt-2.5 text-xl font-bold text-slate-50">
+              그라데이션 컵 심리전 (7개의 컵)
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              양 끝(1·7번)이 가장 짙고 가운데(4번)가 가장 옅은 대칭 색상의 7개 컵에
+              0~9 숫자를 비내림차순(총합 30 이하)으로 배치한 뒤, 가림막 위 컵 색상만 보고 수 싸움을 펼치세요.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+              <span>1인 vs AI 봇 & 2인 로컬 대전</span>
+              <span aria-hidden="true" className="text-slate-600">·</span>
+              <span className="text-cyan-300/90">API 키 없이 바로 실행</span>
+            </div>
+          </div>
+
+          <div className="shrink-0 md:w-64">
             <button
-              type="submit"
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-100 transition-colors hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-sky-400 sm:flex-initial whitespace-nowrap"
+              type="button"
+              onClick={() => onSelectGame('GRADIENT_CUP_GAME')}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-cyan-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 whitespace-nowrap"
             >
-              <Check className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
-              <span>저장</span>
+              <span>7개의 컵 시작하기</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
-            {savedApiKey && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-700 px-3.5 py-2.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
-              >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>삭제</span>
-              </button>
-            )}
           </div>
-        </form>
-
-        {saveNotice && (
-          <p role="status" className="mt-2.5 text-xs font-medium text-emerald-400">
-            {saveNotice}
-          </p>
-        )}
+        </article>
       </section>
     </main>
   );

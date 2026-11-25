@@ -1,4 +1,10 @@
-export type ActiveGame = 'LOBBY' | 'WORD_GAME' | 'FLAG_GAME' | 'WALLBADUK_GAME';
+export type ActiveGame =
+  | 'LOBBY'
+  | 'WORD_GAME'
+  | 'FLAG_GAME'
+  | 'WALLBADUK_GAME'
+  | 'BLIND_MAZE_GAME'
+  | 'GRADIENT_CUP_GAME';
 
 export type GameMode = 'solo' | 'setter';
 

@@ -8,6 +8,7 @@ import {
   Search,
   Send,
 } from 'lucide-react';
+import { GameBoardLayout } from './GameBoardLayout';
 import { HintRow } from './HintRow';
 import { ResultSummary } from './ResultSummary';
 import { StartScreen } from './StartScreen';
@@ -49,6 +50,7 @@ export function WordChainGame({ customApiKey, onBackToLobby }: WordChainGameProp
   const [guessInput, setGuessInput] = useState('');
   const [guessFeedback, setGuessFeedback] = useState<string | null>(null);
   const [shakeGuess, setShakeGuess] = useState(false);
+  const [mobileInputTab, setMobileInputTab] = useState<'hint' | 'guess'>('hint');
 
   const [isStartingSolo, setIsStartingSolo] = useState(false);
   const [isStartingSetter, setIsStartingSetter] = useState(false);
@@ -99,6 +101,7 @@ export function WordChainGame({ customApiKey, onBackToLobby }: WordChainGameProp
     setGuessFeedback(null);
     setConfirmingGiveUp(false);
     setErrorMessage(null);
+    setMobileInputTab('hint');
   };
 
   const startGame = async (selectedMode: GameMode, customWord?: string) => {
@@ -272,36 +275,23 @@ export function WordChainGame({ customApiKey, onBackToLobby }: WordChainGameProp
   const handlePrefillGuess = (word: string) => {
     setGuessInput(word);
     setGuessFeedback(null);
-    guessInputRef.current?.focus();
+    setMobileInputTab('guess');
+    window.setTimeout(() => guessInputRef.current?.focus(), 30);
   };
 
-  return (
-    <>
-      {phase === 'VICTORY' && <VictoryConfetti />}
-
-      {/* Sub-bar context strip */}
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-5 sm:px-6">
-        <button
-          type="button"
-          onClick={phase === 'TITLE' ? onBackToLobby : handleReturnToTitle}
-          className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{phase === 'TITLE' ? '로비로 돌아가기' : '모드 선택으로'}</span>
-        </button>
-
-        {phase !== 'TITLE' && (
+  if (phase === 'TITLE') {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
           <button
             type="button"
-            onClick={handleReturnToTitle}
-            className="text-xs font-medium text-slate-400 transition-colors hover:text-sky-300 whitespace-nowrap"
+            onClick={onBackToLobby}
+            className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
           >
-            새 문제 시작
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>로비로 돌아가기</span>
           </button>
-        )}
-      </div>
-
-      {phase === 'TITLE' && (
+        </div>
         <StartScreen
           isStartingSolo={isStartingSolo}
           isStartingSetter={isStartingSetter}
@@ -310,293 +300,24 @@ export function WordChainGame({ customApiKey, onBackToLobby }: WordChainGameProp
           onStartSetter={(word) => startGame('setter', word)}
           onClearError={() => setErrorMessage(null)}
         />
-      )}
+      </div>
+    );
+  }
 
-      {phase === 'PLAYING' && (
-        <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-          {errorMessage && (
-            <div
-              role="alert"
-              className="mb-5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
-            >
-              {errorMessage}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
-            {/* Left Column: Secret Vault + Hint Probe + Answer Challenge */}
-            <section className="space-y-5 lg:sticky lg:top-20 lg:col-span-5">
-              <div className="rounded-2xl border border-slate-800 bg-[#131926] p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
-                    <Lock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
-                    <span>숨겨진 정답</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <span>{mode === 'solo' ? '솔로 모드' : '출제자 모드'}</span>
-                    <span aria-hidden="true" className="text-slate-600">·</span>
-                    <span className="font-mono tabular-nums text-slate-300">
-                      힌트 {hintCount}
-                    </span>
-                    <span aria-hidden="true" className="text-slate-600">·</span>
-                    <span className="font-mono tabular-nums text-slate-300">
-                      도전 {answerAttempts}
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  className="mt-4 flex items-center justify-center gap-2.5 rounded-xl border border-slate-800/90 bg-[#0B0F17] py-4"
-                  aria-label="정답 단어가 마스킹되어 숨겨져 있습니다"
-                >
-                  {Array.from({ length: Math.min(6, Math.max(4, maskedCount)) }).map((_, i) => (
-                    <span
-                      key={i}
-                      className="h-2.5 w-2.5 rounded-full bg-slate-500/80"
-                      aria-hidden="true"
-                    />
-                  ))}
-                  <span className="ml-2 text-xs font-medium text-slate-500">
-                    마스킹됨
-                  </span>
-                </div>
-
-                {/* Hint Input */}
-                <form onSubmit={handleHintSubmit} className="mt-5">
-                  <label
-                    htmlFor="hint-word-input"
-                    className="block text-sm font-semibold text-slate-100"
-                  >
-                    힌트 단어 입력
-                  </label>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    단어를 입력해 정답과의 의미 유사도를 측정하세요.
-                  </p>
-                  <div className="mt-2.5 flex gap-2">
-                    <input
-                      ref={hintInputRef}
-                      id="hint-word-input"
-                      type="text"
-                      value={hintInput}
-                      onChange={(e) => setHintInput(e.target.value)}
-                      placeholder="예: 바다, 사과, 음악"
-                      maxLength={25}
-                      autoComplete="off"
-                      disabled={isSubmittingHint}
-                      className="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-700/80 bg-[#0B0F17] px-4 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 disabled:opacity-60"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isSubmittingHint || hintInput.trim().length === 0}
-                      className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-xl bg-sky-400 px-4 py-2.5 text-sm font-bold text-slate-950 transition-colors hover:bg-sky-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0"
-                    >
-                      {isSubmittingHint ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Search className="h-4 w-4" aria-hidden="true" />
-                      )}
-                      <span>유사도 측정</span>
-                    </button>
-                  </div>
-                </form>
-
-                <hr className="my-5 border-slate-800/90" />
-
-                {/* Answer Challenge Input */}
-                <form
-                  onSubmit={handleGuessSubmit}
-                  className={shakeGuess ? 'animate-shake' : undefined}
-                >
-                  <label
-                    htmlFor="guess-answer-input"
-                    className="block text-sm font-semibold text-emerald-300"
-                  >
-                    정답 도전
-                  </label>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    정답이 떠올랐다면 아래에 입력해 맞혀보세요.
-                  </p>
-                  <div className="mt-2.5 flex gap-2">
-                    <input
-                      ref={guessInputRef}
-                      id="guess-answer-input"
-                      type="text"
-                      value={guessInput}
-                      onChange={(e) => {
-                        if (guessFeedback) setGuessFeedback(null);
-                        setGuessInput(e.target.value);
-                      }}
-                      placeholder="정답 단어를 입력하세요"
-                      maxLength={25}
-                      autoComplete="off"
-                      disabled={isSubmittingGuess}
-                      className="min-h-12 min-w-0 flex-1 rounded-xl border border-emerald-500/35 bg-[#0B0F17] px-4 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:opacity-60"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isSubmittingGuess || guessInput.trim().length === 0}
-                      className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0"
-                    >
-                      {isSubmittingGuess ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Send className="h-4 w-4" aria-hidden="true" />
-                      )}
-                      <span>정답 확인</span>
-                    </button>
-                  </div>
-
-                  {guessFeedback && (
-                    <p role="status" className="mt-2 text-xs font-medium text-rose-300">
-                      {guessFeedback}
-                    </p>
-                  )}
-
-                  {wrongGuesses.length > 0 && (
-                    <p className="mt-2 text-xs text-slate-500">
-                      오답 기록: <span className="text-slate-400">{wrongGuesses.join(' · ')}</span>
-                    </p>
-                  )}
-                </form>
-
-                {/* Give Up */}
-                <div className="mt-5 border-t border-slate-800/80 pt-4">
-                  {!confirmingGiveUp ? (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingGiveUp(true)}
-                      className="inline-flex min-h-10 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
-                    >
-                      <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>포기 및 정답 보기</span>
-                    </button>
-                  ) : (
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <span className="text-slate-300">정말 포기하고 정답을 볼까요?</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setConfirmingGiveUp(false)}
-                          disabled={isGivingUp}
-                          className="min-h-9 rounded-lg border border-slate-700 px-3 py-1.5 font-medium text-slate-300 transition-colors hover:bg-slate-800 whitespace-nowrap shrink-0"
-                        >
-                          취소
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleGiveUp}
-                          disabled={isGivingUp}
-                          className="min-h-9 rounded-lg bg-rose-500/90 px-3 py-1.5 font-semibold text-white transition-colors hover:bg-rose-500 disabled:opacity-60 whitespace-nowrap shrink-0"
-                        >
-                          {isGivingUp ? '불러오는 중...' : '정답 보기'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Right Column: Latest Guess Banner + Auto-Sorted Similarity Ranking */}
-            <section className="lg:col-span-7">
-              {latestHint && (
-                <div className="mb-5 rounded-2xl border border-sky-500/35 bg-[#131926] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <span className="font-medium text-sky-400">최근 측정 결과</span>
-                        <span aria-hidden="true" className="text-slate-600">·</span>
-                        <span className="font-mono tabular-nums">
-                          현재 {latestHint.rank}위
-                        </span>
-                        <span aria-hidden="true" className="text-slate-600">·</span>
-                        <span>{getSimilarityLabel(latestHint.entry.similarity)}</span>
-                      </div>
-                      <p className="mt-1 truncate text-lg font-bold text-slate-100">
-                        {latestHint.entry.word}
-                      </p>
-                      {alreadyTriedNotice && (
-                        <p className="mt-0.5 text-xs text-amber-300/90">
-                          {alreadyTriedNotice}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="text-right">
-                      <span
-                        className={`font-mono text-2xl font-bold tabular-nums ${
-                          getSimilarityTier(latestHint.entry.similarity) === 'high'
-                            ? 'text-emerald-400'
-                            : getSimilarityTier(latestHint.entry.similarity) === 'medium'
-                              ? 'text-amber-300'
-                              : 'text-slate-300'
-                        }`}
-                      >
-                        {latestHint.entry.similarity.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {latestHint.entry.isExactMatch && (
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-3">
-                      <div className="flex items-center gap-2 text-xs font-medium text-emerald-300">
-                        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>정답 단어와 정확히 일치합니다!</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => submitAnswerChallenge(latestHint.entry.word)}
-                        disabled={isSubmittingGuess}
-                        className="min-h-9 rounded-lg bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 whitespace-nowrap shrink-0"
-                      >
-                        이 단어로 정답 완료하기
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-sm font-semibold text-slate-200">
-                  힌트 목록{' '}
-                  <span className="font-mono font-normal tabular-nums text-slate-400">
-                    ({sortedHints.length})
-                  </span>
-                </h2>
-                <div className="flex items-center gap-3 text-xs text-slate-400">
-                  <span>유사도 높은 순 자동 정렬</span>
-                </div>
-              </div>
-
-              {sortedHints.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-800 bg-[#131926]/50 px-6 py-14 text-center">
-                  <p className="text-base font-semibold text-slate-200">
-                    첫 번째 힌트 단어를 입력해보세요
-                  </p>
-                  <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-400">
-                    자연, 음식, 도구, 장소, 감정처럼 넓은 범위의 단어로 시작하면
-                    정답이 속한 의미 영역을 빠르게 좁힐 수 있습니다.
-                  </p>
-                </div>
-              ) : (
-                <ol className="space-y-2.5" aria-label="유사도 순 힌트 목록">
-                  {sortedHints.map((hint, idx) => (
-                    <HintRow
-                      key={hint.id}
-                      hint={hint}
-                      rank={idx + 1}
-                      isLatest={hint.id === latestHintId}
-                      onSelectForGuess={handlePrefillGuess}
-                    />
-                  ))}
-                </ol>
-              )}
-            </section>
-          </div>
-        </main>
-      )}
-
-      {(phase === 'VICTORY' || phase === 'GAVE_UP') && (
+  if (phase === 'VICTORY' || phase === 'GAVE_UP') {
+    return (
+      <div className="h-full overflow-y-auto">
+        {phase === 'VICTORY' && <VictoryConfetti />}
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
+          <button
+            type="button"
+            onClick={handleReturnToTitle}
+            className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>모드 선택으로</span>
+          </button>
+        </div>
         <ResultSummary
           won={phase === 'VICTORY'}
           mode={mode}
@@ -610,7 +331,317 @@ export function WordChainGame({ customApiKey, onBackToLobby }: WordChainGameProp
           onPlaySoloAgain={() => startGame('solo')}
           onReturnToTitle={handleReturnToTitle}
         />
-      )}
-    </>
+      </div>
+    );
+  }
+
+  // PLAYING PHASE: One-Screen 100dvh Fold 8 GameBoardLayout
+  return (
+    <GameBoardLayout
+      scrollableMain
+      topBar={
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleReturnToTitle}
+              aria-label="모드 선택으로"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/80 text-slate-300 transition-colors hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <div className="flex items-center gap-2">
+              <Lock className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
+              <span className="text-xs font-bold text-slate-100 sm:text-sm">말결</span>
+              <span className="flex items-center gap-1 rounded-md border border-slate-800 bg-[#0B0F17] px-2 py-0.5">
+                {Array.from({ length: Math.min(6, Math.max(4, maskedCount)) }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full bg-slate-400"
+                    aria-hidden="true"
+                  />
+                ))}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="hidden sm:inline">
+              {mode === 'solo' ? '솔로 모드' : '출제자 모드'}
+            </span>
+            <span aria-hidden="true" className="hidden sm:inline text-slate-600">·</span>
+            <span className="font-mono tabular-nums text-slate-200">힌트 {hintCount}</span>
+            <span aria-hidden="true" className="text-slate-600">·</span>
+            <span className="font-mono tabular-nums text-slate-200">도전 {answerAttempts}</span>
+          </div>
+        </div>
+      }
+      noticeBar={
+        errorMessage ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200"
+          >
+            {errorMessage}
+          </div>
+        ) : undefined
+      }
+      mainStage={
+        <div className="flex flex-col gap-2.5 pb-1">
+          {latestHint && (
+            <div className="shrink-0 rounded-xl border border-sky-500/35 bg-[#131926] px-3.5 py-2.5 sm:px-4 sm:py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 sm:text-xs">
+                    <span className="font-medium text-sky-400">최근 측정</span>
+                    <span aria-hidden="true" className="text-slate-600">·</span>
+                    <span className="font-mono tabular-nums">{latestHint.rank}위</span>
+                    <span aria-hidden="true" className="text-slate-600">·</span>
+                    <span>{getSimilarityLabel(latestHint.entry.similarity)}</span>
+                  </div>
+                  <p className="mt-0.5 truncate text-base font-bold text-slate-100 sm:text-lg">
+                    {latestHint.entry.word}
+                  </p>
+                  {alreadyTriedNotice && (
+                    <p className="text-[11px] text-amber-300/90">{alreadyTriedNotice}</p>
+                  )}
+                </div>
+
+                <span
+                  className={`font-mono text-xl font-bold tabular-nums sm:text-2xl ${
+                    getSimilarityTier(latestHint.entry.similarity) === 'high'
+                      ? 'text-emerald-400'
+                      : getSimilarityTier(latestHint.entry.similarity) === 'medium'
+                        ? 'text-amber-300'
+                        : 'text-slate-300'
+                  }`}
+                >
+                  {latestHint.entry.similarity.toFixed(1)}%
+                </span>
+              </div>
+
+              {latestHint.entry.isExactMatch && (
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    정답 단어와 일치합니다!
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => submitAnswerChallenge(latestHint.entry.word)}
+                    disabled={isSubmittingGuess}
+                    className="min-h-8 rounded-lg bg-emerald-500 px-3 py-1 text-xs font-bold text-slate-950 hover:bg-emerald-400 whitespace-nowrap"
+                  >
+                    정답 완료하기
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-baseline justify-between gap-2 px-0.5">
+            <h2 className="text-xs font-semibold text-slate-300 sm:text-sm">
+              힌트 유사도 순위{' '}
+              <span className="font-mono font-normal tabular-nums text-slate-400">
+                ({sortedHints.length})
+              </span>
+            </h2>
+            <span className="text-[11px] text-slate-500">높은 유사도 순 자동 정렬</span>
+          </div>
+
+          {sortedHints.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-[#131926]/50 px-5 py-10 text-center">
+              <p className="text-sm font-semibold text-slate-200 sm:text-base">
+                첫 번째 힌트 단어를 입력해보세요
+              </p>
+              <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-slate-400 sm:text-sm">
+                자연, 음식, 도구, 장소, 감정처럼 넓은 범위의 단어로 시작하면
+                정답의 의미 영역을 빠르게 좁힐 수 있습니다.
+              </p>
+            </div>
+          ) : (
+            <ol className="space-y-2" aria-label="유사도 순 힌트 목록">
+              {sortedHints.map((hint, idx) => (
+                <HintRow
+                  key={hint.id}
+                  hint={hint}
+                  rank={idx + 1}
+                  isLatest={hint.id === latestHintId}
+                  onSelectForGuess={handlePrefillGuess}
+                />
+              ))}
+            </ol>
+          )}
+        </div>
+      }
+      controlPanel={
+        <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4">
+          {/* Mobile Cover (<640px): Compact 2-tab switch for thumb ergonomics */}
+          <div className="mb-2.5 flex items-center gap-1.5 rounded-lg bg-[#0B0F17] p-1 sm:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileInputTab('hint')}
+              className={`min-h-9 flex-1 rounded-md text-xs font-bold transition-colors ${
+                mobileInputTab === 'hint'
+                  ? 'bg-sky-400 text-slate-950'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              힌트 측정
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileInputTab('guess')}
+              className={`min-h-9 flex-1 rounded-md text-xs font-bold transition-colors ${
+                mobileInputTab === 'guess'
+                  ? 'bg-emerald-500 text-slate-950'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              정답 도전
+            </button>
+          </div>
+
+          {/* Hint Form (always visible on Fold unfolded >=640px, tabbed on cover <640px) */}
+          <form
+            onSubmit={handleHintSubmit}
+            className={mobileInputTab === 'hint' ? 'block' : 'hidden sm:block'}
+          >
+            <label
+              htmlFor="hint-word-input"
+              className="hidden text-xs font-semibold text-slate-100 sm:block sm:text-sm"
+            >
+              힌트 단어 입력
+            </label>
+            <p className="mt-0.5 hidden text-xs text-slate-400 sm:block">
+              정답과의 의미 유사도(0%~100%)를 측정합니다.
+            </p>
+            <div className="flex gap-2 sm:mt-2.5">
+              <input
+                ref={hintInputRef}
+                id="hint-word-input"
+                type="text"
+                value={hintInput}
+                onChange={(e) => setHintInput(e.target.value)}
+                placeholder="힌트 단어 (예: 바다, 사과)"
+                maxLength={25}
+                autoComplete="off"
+                disabled={isSubmittingHint}
+                className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-700/80 bg-[#0B0F17] px-3.5 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={isSubmittingHint || hintInput.trim().length === 0}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-sky-400 px-3.5 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0 sm:px-4 sm:text-sm"
+              >
+                {isSubmittingHint ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Search className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span>측정</span>
+              </button>
+            </div>
+          </form>
+
+          <hr className="my-4 hidden border-slate-800/90 sm:block" />
+
+          {/* Answer Challenge Form */}
+          <form
+            onSubmit={handleGuessSubmit}
+            className={`${mobileInputTab === 'guess' ? 'block' : 'hidden sm:block'} ${
+              shakeGuess ? 'animate-shake' : ''
+            }`}
+          >
+            <label
+              htmlFor="guess-answer-input"
+              className="hidden text-xs font-semibold text-emerald-300 sm:block sm:text-sm"
+            >
+              정답 도전
+            </label>
+            <p className="mt-0.5 hidden text-xs text-slate-400 sm:block">
+              정답이 떠올랐다면 아래에 입력해 맞혀보세요.
+            </p>
+            <div className="flex gap-2 sm:mt-2.5">
+              <input
+                ref={guessInputRef}
+                id="guess-answer-input"
+                type="text"
+                value={guessInput}
+                onChange={(e) => {
+                  if (guessFeedback) setGuessFeedback(null);
+                  setGuessInput(e.target.value);
+                }}
+                placeholder="정답 단어를 입력하세요"
+                maxLength={25}
+                autoComplete="off"
+                disabled={isSubmittingGuess}
+                className="min-h-11 min-w-0 flex-1 rounded-xl border border-emerald-500/35 bg-[#0B0F17] px-3.5 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={isSubmittingGuess || guessInput.trim().length === 0}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0 sm:px-4 sm:text-sm"
+              >
+                {isSubmittingGuess ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span>확인</span>
+              </button>
+            </div>
+
+            {guessFeedback && (
+              <p role="status" className="mt-1.5 text-xs font-medium text-rose-300">
+                {guessFeedback}
+              </p>
+            )}
+
+            {wrongGuesses.length > 0 && (
+              <p className="mt-1.5 truncate text-[11px] text-slate-500">
+                오답: <span className="text-slate-400">{wrongGuesses.join(' · ')}</span>
+              </p>
+            )}
+          </form>
+
+          {/* Give Up Control */}
+          <div className="mt-2.5 border-t border-slate-800/80 pt-2.5 sm:mt-4 sm:pt-3.5">
+            {!confirmingGiveUp ? (
+              <button
+                type="button"
+                onClick={() => setConfirmingGiveUp(true)}
+                className="inline-flex min-h-8 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-rose-300 whitespace-nowrap"
+              >
+                <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>포기 및 정답 보기</span>
+              </button>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="text-slate-300">정답을 볼까요?</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingGiveUp(false)}
+                    disabled={isGivingUp}
+                    className="min-h-8 rounded-lg border border-slate-700 px-2.5 py-1 font-medium text-slate-300 hover:bg-slate-800"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGiveUp}
+                    disabled={isGivingUp}
+                    className="min-h-8 rounded-lg bg-rose-500/90 px-2.5 py-1 font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+                  >
+                    {isGivingUp ? '불러오는 중' : '정답 보기'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      }
+    />
   );
 }

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { FLAG_COUNTRIES, getFlagImageUrl, type FlagCountry } from '../data/flags';
 import { soundEngine } from '../utils/sound';
+import { GameBoardLayout, SquareBoardBox } from './GameBoardLayout';
 import { VictoryConfetti } from './VictoryConfetti';
 
 type FlagGamePhase = 'SETUP' | 'PRELOADING' | 'EXPOSURE' | 'READY' | 'RECALL' | 'RESULT';
@@ -44,10 +45,10 @@ function FlagImage({
   if (failed) {
     return (
       <div
-        className={`flex flex-col items-center justify-center bg-slate-800 text-slate-300 ${className}`}
+        className={`flex h-full w-full flex-col items-center justify-center bg-slate-800 text-slate-300 ${className}`}
       >
         <span className="font-mono text-xs font-bold uppercase">{country.code}</span>
-        <span className="mt-0.5 text-[11px] text-slate-400">{country.nameKo}</span>
+        <span className="mt-0.5 text-[10px] text-slate-400">{country.nameKo}</span>
       </div>
     );
   }
@@ -209,52 +210,44 @@ export function FlagMemoryGame({ onBackToLobby }: FlagMemoryGameProps) {
   const completedSteps = (currentCycle - 1) * 10 + (currentIndex + 1);
   const progressRatio = Math.min(1, completedSteps / totalSteps);
 
-  return (
-    <>
-      {phase === 'RESULT' && resultStats.hits === 5 && <VictoryConfetti />}
+  if (phase === 'SETUP') {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
+          <button
+            type="button"
+            onClick={onBackToLobby}
+            className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>로비로 돌아가기</span>
+          </button>
+          <span className="text-xs text-slate-500">
+            {FLAG_COUNTRIES.length}개국 국기 데이터셋
+          </span>
+        </div>
 
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-5 sm:px-6">
-        <button
-          type="button"
-          onClick={phase === 'SETUP' ? onBackToLobby : () => {
-            clearTimer();
-            setPhase('SETUP');
-          }}
-          className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{phase === 'SETUP' ? '로비로 돌아가기' : '설정 화면으로'}</span>
-        </button>
-
-        <span className="text-xs text-slate-500">
-          {FLAG_COUNTRIES.length}개국 국기 데이터셋
-        </span>
-      </div>
-
-      {/* Phase 0: SETUP */}
-      {phase === 'SETUP' && (
-        <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+        <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
           <section className="text-center">
             <p className="text-xs font-medium text-emerald-400">
               게임 2 · 순간 시각 기억력 테스트
             </p>
-            <h1 className="mt-2.5 text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl [text-wrap:balance]">
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-50 sm:text-4xl [text-wrap:balance]">
               국기 기억력 테스트
             </h1>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
+            <p className="mt-2.5 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
               무작위 10개 국기가 지정한 시간과 횟수만큼 순서대로 지나갑니다.
               모두 본 뒤 5×5 배열의 25개 국기 중 앞서 본 5개 국기를 찾아내세요.
             </p>
           </section>
 
-          <section className="mt-8 rounded-2xl border border-slate-800 bg-[#131926] p-6 sm:p-8">
+          <section className="mt-6 rounded-2xl border border-slate-800 bg-[#131926] p-5 sm:p-7">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
               <SlidersHorizontal className="h-4 w-4 text-emerald-400" aria-hidden="true" />
               <span>노출 규칙 설정</span>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              {/* Setting 1: Seconds per flag */}
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
                 <label
                   htmlFor="flag-seconds-input"
@@ -275,9 +268,9 @@ export function FlagMemoryGame({ onBackToLobby }: FlagMemoryGameProps) {
                     setSecondsPerFlag(Number.isNaN(val) ? 0.5 : val);
                   }}
                   onBlur={() => setSecondsPerFlag(Math.round(safeSeconds * 10) / 10)}
-                  className="mt-2.5 min-h-12 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] px-4 py-2.5 font-mono text-lg font-bold tabular-nums text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] px-4 py-2 font-mono text-lg font-bold tabular-nums text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {EXPOSURE_TIME_PRESETS.map((preset) => (
                     <button
                       key={preset}
@@ -295,7 +288,6 @@ export function FlagMemoryGame({ onBackToLobby }: FlagMemoryGameProps) {
                 </div>
               </div>
 
-              {/* Setting 2: Total cycles */}
               <div>
                 <label
                   htmlFor="flag-cycles-input"
@@ -316,9 +308,9 @@ export function FlagMemoryGame({ onBackToLobby }: FlagMemoryGameProps) {
                     setTotalCycles(Number.isNaN(val) ? 3 : val);
                   }}
                   onBlur={() => setTotalCycles(safeCycles)}
-                  className="mt-2.5 min-h-12 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] px-4 py-2.5 font-mono text-lg font-bold tabular-nums text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] px-4 py-2 font-mono text-lg font-bold tabular-nums text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {CYCLE_PRESETS.map((preset) => (
                     <button
                       key={preset}
@@ -337,8 +329,7 @@ export function FlagMemoryGame({ onBackToLobby }: FlagMemoryGameProps) {
               </div>
             </div>
 
-            {/* Real-time Total Duration Summary */}
-            <div className="mt-7 flex flex-col items-start justify-between gap-3 rounded-xl border border-slate-800 bg-[#0B0F17] px-5 py-4 sm:flex-row sm:items-center">
+            <div className="mt-6 flex flex-col items-start justify-between gap-2 rounded-xl border border-slate-800 bg-[#0B0F17] px-4 py-3.5 sm:flex-row sm:items-center">
               <div className="text-xs text-slate-400">
                 <span>총 소요 시간</span>
                 <p className="mt-0.5 font-mono text-xs tabular-nums text-slate-500">
@@ -354,308 +345,462 @@ export function FlagMemoryGame({ onBackToLobby }: FlagMemoryGameProps) {
             <button
               type="button"
               onClick={startRound}
-              className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 whitespace-nowrap"
+              className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 whitespace-nowrap"
             >
               <Play className="h-4 w-4" aria-hidden="true" />
               <span>기억력 테스트 시작</span>
             </button>
           </section>
         </main>
-      )}
+      </div>
+    );
+  }
 
-      {/* Preloading */}
-      {phase === 'PRELOADING' && (
-        <main className="mx-auto flex w-full max-w-xl flex-col items-center justify-center px-4 py-24 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" aria-hidden="true" />
-          <p className="mt-4 text-base font-semibold text-slate-100">
-            국기 이미지를 불러오는 중입니다...
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            정확한 {safeSeconds.toFixed(1)}초 간격 노출을 위해 미리 준비하고 있습니다.
-          </p>
-        </main>
-      )}
+  if (phase === 'PRELOADING') {
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-4 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" aria-hidden="true" />
+        <p className="mt-4 text-base font-semibold text-slate-100">
+          국기 이미지를 불러오는 중입니다...
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          정확한 {safeSeconds.toFixed(1)}초 간격 노출을 위해 미리 준비하고 있습니다.
+        </p>
+      </div>
+    );
+  }
 
-      {/* Phase 1: EXPOSURE */}
-      {phase === 'EXPOSURE' && activeExposureFlag && (
-        <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
-          <div className="rounded-2xl border border-slate-800 bg-[#131926] p-6 sm:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <span className="text-xs font-medium text-emerald-400">현재 회차</span>
-                <p className="mt-0.5 font-mono text-xl font-bold tabular-nums text-slate-100">
-                  {currentCycle} <span className="text-sm font-normal text-slate-400">/ {safeCycles} 회차</span>
-                </p>
+  if (phase === 'READY') {
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-4">
+        <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#131926] p-7 text-center sm:p-9">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
+            <Flag className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <h2 className="mt-4 text-2xl font-bold text-slate-50">
+            국기 노출이 모두 끝났습니다
+          </h2>
+          <p className="mt-2.5 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
+            총 {safeCycles}회차({totalDurationSeconds.toFixed(1)}초) 동안 10개의 국기를 확인했습니다.
+            다음 5×5 배열(25개 국기)에서 방금 본 국기 중 5개를 찾아 선택하세요.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setPhase('RECALL')}
+            className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 sm:w-auto sm:min-w-48 whitespace-nowrap"
+          >
+            <span>시작</span>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </section>
+      </div>
+    );
+  }
+
+  // EXPOSURE, RECALL, RESULT -> One-screen 100dvh Fold 8 GameBoardLayout
+  return (
+    <>
+      {phase === 'RESULT' && resultStats.hits === 5 && <VictoryConfetti />}
+
+      <GameBoardLayout
+        topBar={
+          <div className="rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearTimer();
+                    setPhase('SETUP');
+                  }}
+                  aria-label="설정 화면으로"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/80 text-slate-300 transition-colors hover:bg-slate-800"
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <span className="text-xs font-bold text-slate-100 sm:text-sm">
+                  {phase === 'EXPOSURE'
+                    ? '국기 기억 단계'
+                    : phase === 'RECALL'
+                      ? '5×5 국기 찾기'
+                      : `채점 결과 · 5개 중 ${resultStats.hits}개 정답`}
+                </span>
               </div>
-              <div className="text-right">
-                <span className="text-xs font-medium text-slate-400">국기 순서</span>
-                <p className="mt-0.5 font-mono text-xl font-bold tabular-nums text-sky-400">
-                  {currentIndex + 1} <span className="text-sm font-normal text-slate-400">/ 10</span>
-                </p>
-              </div>
+
+              {phase === 'EXPOSURE' && (
+                <div className="flex items-center gap-3 font-mono text-xs font-bold tabular-nums sm:text-sm">
+                  <span className="text-emerald-400">
+                    {currentCycle}/{safeCycles}회차
+                  </span>
+                  <span className="text-sky-400">{currentIndex + 1}/10</span>
+                </div>
+              )}
+
+              {phase === 'RECALL' && (
+                <div className="font-mono text-xs font-bold tabular-nums sm:text-sm">
+                  <span className={selectedCodes.length === 5 ? 'text-emerald-400' : 'text-sky-400'}>
+                    {selectedCodes.length}
+                  </span>
+                  <span className="text-slate-500"> / 5 선택</span>
+                </div>
+              )}
+
+              {phase === 'RESULT' && (
+                <div className="flex items-center gap-2.5 font-mono text-xs font-bold tabular-nums">
+                  <span className="text-emerald-400">정답 {resultStats.hits}</span>
+                  <span className="text-rose-400">오답 {resultStats.wrong}</span>
+                  <span className="text-amber-300">놓침 {resultStats.missed}</span>
+                </div>
+              )}
             </div>
 
-            {/* Smooth Progress Bar */}
-            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full w-full origin-left rounded-full bg-emerald-400 transition-transform duration-150 ease-out"
-                style={{ transform: `scaleX(${progressRatio})` }}
-              />
-            </div>
-
-            {/* Central Flag Display */}
-            <div className="mt-8 flex flex-col items-center">
-              <div className="aspect-[3/2] w-full max-w-sm overflow-hidden rounded-xl border border-slate-700/80 bg-[#0B0F17] shadow-lg">
+            {phase === 'EXPOSURE' && (
+              <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className="h-full w-full origin-left rounded-full bg-emerald-400 transition-transform duration-150 ease-out"
+                  style={{ transform: `scaleX(${progressRatio})` }}
+                />
+              </div>
+            )}
+          </div>
+        }
+        mainStage={
+          phase === 'EXPOSURE' && activeExposureFlag ? (
+            <div className="flex h-full w-full items-center justify-center rounded-2xl border border-slate-800 bg-[#131926] p-4 sm:p-6">
+              <div className="aspect-[3/2] max-h-full w-full max-w-md overflow-hidden rounded-xl border-2 border-slate-700/80 bg-[#0B0F17] shadow-xl">
                 <FlagImage
                   key={`${currentCycle}-${activeExposureFlag.code}`}
                   country={activeExposureFlag}
                 />
               </div>
-              <p className="mt-5 text-xs text-slate-400">
-                국기의 색상과 문양을 집중해서 기억하세요
-              </p>
             </div>
-          </div>
-        </main>
-      )}
-
-      {/* Phase 2: READY */}
-      {phase === 'READY' && (
-        <main className="mx-auto w-full max-w-xl px-4 py-14 sm:px-6 sm:py-20">
-          <section className="rounded-2xl border border-slate-800 bg-[#131926] p-7 text-center sm:p-10">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
-              <Flag className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <h2 className="mt-5 text-2xl font-bold text-slate-50">
-              국기 노출이 모두 끝났습니다
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
-              총 {safeCycles}회차({totalDurationSeconds.toFixed(1)}초) 동안 10개의 국기를 확인했습니다.
-              다음 화면의 5×5 배열(25개 국기)에서 방금 본 국기 중 5개를 찾아 선택하세요.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => setPhase('RECALL')}
-              className="mt-8 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 sm:w-auto sm:min-w-48 whitespace-nowrap"
-            >
-              <span>시작</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </section>
-        </main>
-      )}
-
-      {/* Phase 3: RECALL (5x5 Grid) */}
-      {phase === 'RECALL' && (
-        <main className="mx-auto w-full max-w-4xl px-3 py-6 sm:px-6 sm:py-8">
-          <div className="mb-5 flex flex-col justify-between gap-4 rounded-2xl border border-slate-800 bg-[#131926] p-4 sm:flex-row sm:items-center sm:px-6">
-            <div>
-              <h2 className="text-base font-bold text-slate-100 sm:text-lg">
-                방금 본 국기 5개를 선택하세요
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-400">
-                25개 국기 중 앞서 등장했던 국기 5개가 섞여 있습니다.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between gap-4 sm:justify-end">
-              <div className="font-mono text-sm font-bold tabular-nums text-slate-200">
-                선택{' '}
-                <span className={selectedCodes.length === 5 ? 'text-emerald-400' : 'text-sky-400'}>
-                  {selectedCodes.length}
-                </span>
-                <span className="text-slate-500"> / 5</span>
-              </div>
-
-              <button
-                type="button"
-                disabled={selectedCodes.length !== 5}
-                onClick={handleSubmitRecall}
-                className="min-h-11 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 whitespace-nowrap shrink-0"
+          ) : phase === 'RECALL' ? (
+            <SquareBoardBox maxPx={620}>
+              <div
+                className="grid h-full w-full grid-cols-5 grid-rows-5 gap-1.5 rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:gap-2 sm:p-3"
+                role="group"
+                aria-label="5x5 국기 선택 배열"
               >
-                제출
-              </button>
-            </div>
-          </div>
+                {gridFlags.map((flag) => {
+                  const isSelected = selectedCodes.includes(flag.code);
+                  const selectionOrder = selectedCodes.indexOf(flag.code) + 1;
+                  const disabled = !isSelected && selectedCodes.length >= 5;
 
-          <div
-            className="grid grid-cols-5 gap-1.5 sm:gap-3"
-            role="group"
-            aria-label="5x5 국기 선택 배열"
-          >
-            {gridFlags.map((flag) => {
-              const isSelected = selectedCodes.includes(flag.code);
-              const selectionOrder = selectedCodes.indexOf(flag.code) + 1;
-              const disabled = !isSelected && selectedCodes.length >= 5;
+                  return (
+                    <button
+                      key={flag.code}
+                      type="button"
+                      onClick={() => toggleFlagSelection(flag.code)}
+                      disabled={disabled}
+                      aria-pressed={isSelected}
+                      aria-label={`국기 선택 ${isSelected ? '(선택됨)' : ''}`}
+                      className={`relative h-full w-full overflow-hidden rounded-lg border-2 bg-[#0B0F17] transition-all duration-150 focus-visible:outline-2 focus-visible:outline-sky-400 ${
+                        isSelected
+                          ? 'border-sky-400 ring-2 ring-sky-400/40 scale-[0.97]'
+                          : disabled
+                            ? 'border-slate-800/70 opacity-40 cursor-not-allowed'
+                            : 'border-slate-800 hover:border-slate-600'
+                      }`}
+                    >
+                      <FlagImage country={flag} />
+                      {isSelected && (
+                        <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md bg-sky-400 font-mono text-[11px] font-bold text-slate-950 shadow">
+                          {selectionOrder}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </SquareBoardBox>
+          ) : (
+            <SquareBoardBox maxPx={620}>
+              <div
+                className="grid h-full w-full grid-cols-5 grid-rows-5 gap-1 rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:gap-1.5 sm:p-3"
+                aria-label="5x5 국기 채점 결과 배열"
+              >
+                {gridFlags.map((flag) => {
+                  const isTarget = targetCodes.has(flag.code);
+                  const isSelected = resultStats.selectedSet.has(flag.code);
 
-              return (
-                <button
-                  key={flag.code}
-                  type="button"
-                  onClick={() => toggleFlagSelection(flag.code)}
-                  disabled={disabled}
-                  aria-pressed={isSelected}
-                  aria-label={`국기 선택 ${isSelected ? '(선택됨)' : ''}`}
-                  className={`group relative aspect-[3/2] min-h-11 overflow-hidden rounded-lg border-2 transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 sm:rounded-xl ${
-                    isSelected
-                      ? 'border-sky-400 ring-2 ring-sky-400/40 scale-[0.98]'
-                      : disabled
-                        ? 'border-slate-800/70 opacity-45 cursor-not-allowed'
-                        : 'border-slate-800 hover:border-slate-600'
-                  }`}
-                >
-                  <FlagImage country={flag} />
+                  let status: 'hit' | 'wrong' | 'missed' | 'neutral' = 'neutral';
+                  if (isTarget && isSelected) status = 'hit';
+                  else if (!isTarget && isSelected) status = 'wrong';
+                  else if (isTarget && !isSelected) status = 'missed';
 
-                  {isSelected && (
-                    <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md bg-sky-400 font-mono text-[11px] font-bold text-slate-950 shadow sm:right-1.5 sm:top-1.5 sm:h-6 sm:w-6 sm:text-xs">
-                      {selectionOrder}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </main>
-      )}
+                  const cardStyle =
+                    status === 'hit'
+                      ? 'border-emerald-400 bg-emerald-500/15'
+                      : status === 'wrong'
+                        ? 'border-rose-500 bg-rose-500/15'
+                        : status === 'missed'
+                          ? 'border-amber-400 bg-amber-400/15'
+                          : 'border-slate-800/70 bg-[#0B0F17] opacity-35';
 
-      {/* Phase 4: RESULT */}
-      {phase === 'RESULT' && (
-        <main className="mx-auto w-full max-w-4xl px-3 py-6 sm:px-6 sm:py-10">
-          <section className="rounded-2xl border border-slate-800 bg-[#131926] p-5 sm:p-7">
-            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
-                  <Trophy className="h-4 w-4" aria-hidden="true" />
-                  <span>채점 결과</span>
-                </div>
-                <h2 className="mt-2 text-2xl font-bold text-slate-50 sm:text-3xl">
-                  5개 중{' '}
-                  <span className="font-mono tabular-nums text-emerald-400">
-                    {resultStats.hits}
+                  const badgeBg =
+                    status === 'hit'
+                      ? 'bg-emerald-500 text-slate-950'
+                      : status === 'wrong'
+                        ? 'bg-rose-500 text-white'
+                        : status === 'missed'
+                          ? 'bg-amber-400 text-slate-950'
+                          : '';
+
+                  const badgeLabel =
+                    status === 'hit'
+                      ? '정답'
+                      : status === 'wrong'
+                        ? '오답'
+                        : status === 'missed'
+                          ? '놓침'
+                          : '';
+
+                  return (
+                    <div
+                      key={flag.code}
+                      className={`relative h-full w-full overflow-hidden rounded-lg border-2 ${cardStyle}`}
+                    >
+                      <FlagImage country={flag} />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-1 pb-0.5 pt-2 text-center">
+                        <span className="block truncate text-[9px] font-semibold text-slate-100 sm:text-[10px]">
+                          {flag.nameKo}
+                        </span>
+                      </div>
+                      {badgeLabel && (
+                        <span
+                          className={`absolute right-0.5 top-0.5 rounded px-1 py-0.5 text-[9px] font-extrabold leading-none ${badgeBg}`}
+                        >
+                          {badgeLabel}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </SquareBoardBox>
+          )
+        }
+        controlPanel={
+          phase === 'EXPOSURE' ? (
+            <div className="rounded-xl border border-slate-800 bg-[#131926] p-3.5 sm:rounded-2xl sm:p-5">
+              <div className="flex items-center justify-between sm:flex-col sm:items-start sm:gap-3">
+                <div>
+                  <span className="text-[11px] font-medium text-emerald-400 sm:text-xs">
+                    집중 관찰 중
                   </span>
-                  개를 맞혔습니다
-                </h2>
-                <p className="mt-1 text-xs text-slate-400">
-                  설정: {safeSeconds.toFixed(1)}초 / 국기 · {safeCycles}회차 반복
+                  <p className="mt-0.5 text-xs text-slate-300 sm:text-sm">
+                    국기의 색상과 문양을 기억하세요 ({safeSeconds.toFixed(1)}초/장)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearTimer();
+                    setPhase('SETUP');
+                  }}
+                  className="min-h-9 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 whitespace-nowrap"
+                >
+                  중단
+                </button>
+              </div>
+            </div>
+          ) : phase === 'RECALL' ? (
+            <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-5">
+              <div className="hidden sm:block">
+                <h3 className="text-sm font-bold text-slate-100">방금 본 국기 5개 선택</h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                  25개 국기 중 앞서 등장했던 5개를 골라 제출하세요.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center justify-between gap-2 sm:mt-4 sm:flex-col sm:items-stretch">
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2, 3, 4].map((slot) => (
+                    <span
+                      key={slot}
+                      className={`flex h-7 w-7 items-center justify-center rounded-lg border font-mono text-xs font-bold ${
+                        slot < selectedCodes.length
+                          ? 'border-sky-400 bg-sky-400 text-slate-950'
+                          : 'border-slate-700 bg-[#0B0F17] text-slate-500'
+                      }`}
+                    >
+                      {slot + 1}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2 sm:mt-2">
+                  {selectedCodes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCodes([])}
+                      className="min-h-10 rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 whitespace-nowrap"
+                    >
+                      초기화
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={selectedCodes.length !== 5}
+                    onClick={handleSubmitRecall}
+                    className="min-h-10 flex-1 rounded-xl bg-emerald-500 px-5 py-2 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 whitespace-nowrap"
+                  >
+                    제출 ({selectedCodes.length}/5)
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-[#131926] p-2.5 sm:h-full sm:justify-between sm:gap-3 sm:rounded-2xl sm:p-4">
+              {/* Score Header (desktop/unfolded; on cover screen it's already in topBar) */}
+              <div className="hidden shrink-0 sm:block">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                    <Trophy className="h-4 w-4" aria-hidden="true" />
+                    <span>최종 채점 결과</span>
+                  </div>
+                  <p className="text-sm font-bold text-slate-50">
+                    5개 중{' '}
+                    <span className="font-mono text-base text-emerald-400">
+                      {resultStats.hits}
+                    </span>
+                    개 정답
+                  </p>
+                </div>
+
+                <dl className="mt-2 grid grid-cols-3 gap-1.5 rounded-xl border border-slate-800/80 bg-[#0B0F17] py-1.5 text-center">
+                  <div>
+                    <dt className="flex items-center justify-center gap-0.5 text-[10px] text-emerald-400">
+                      <Check className="h-3 w-3" aria-hidden="true" />
+                      정답
+                    </dt>
+                    <dd className="font-mono text-sm font-bold tabular-nums text-slate-100">
+                      {resultStats.hits}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="flex items-center justify-center gap-0.5 text-[10px] text-rose-400">
+                      <X className="h-3 w-3" aria-hidden="true" />
+                      오답
+                    </dt>
+                    <dd className="font-mono text-sm font-bold tabular-nums text-slate-100">
+                      {resultStats.wrong}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] text-amber-300">놓침</dt>
+                    <dd className="font-mono text-sm font-bold tabular-nums text-slate-100">
+                      {resultStats.missed}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* Exposed 10 Flags Review Panel (5x2 on cover <640px, 2x5 on Fold 8 unfolded >=640px) */}
+              <div className="min-h-0 flex-1 flex flex-col justify-center">
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <h3 className="text-[11px] font-bold text-slate-200 sm:text-xs">
+                    이번 게임 출제 국기 10선
+                  </h3>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-xs bg-emerald-400" aria-hidden="true" />
+                      정답
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-xs bg-amber-400" aria-hidden="true" />
+                      출제 놓침
+                    </span>
+                  </div>
+                </div>
+
+                <ol
+                  aria-label="이번 라운드 출제 국기 10선"
+                  className="grid grid-cols-5 gap-1 sm:grid-cols-2 sm:gap-1.5"
+                >
+                  {exposureFlags.map((flag, idx) => {
+                    const isTarget = targetCodes.has(flag.code);
+                    const isSelected = resultStats.selectedSet.has(flag.code);
+                    const isHit = isTarget && isSelected;
+                    const isMissed = isTarget && !isSelected;
+
+                    const rowTone = isHit
+                      ? 'border-emerald-400/75 bg-emerald-500/15'
+                      : isMissed
+                        ? 'border-amber-400/75 bg-amber-500/12'
+                        : 'border-slate-800/90 bg-[#0B0F17]';
+
+                    return (
+                      <li
+                        key={flag.code}
+                        className={`flex flex-col items-center gap-0.5 rounded-lg border px-1 py-1 sm:flex-row sm:gap-2 sm:px-2 sm:py-1.5 ${rowTone}`}
+                      >
+                        <span className="hidden w-4 shrink-0 font-mono text-[10px] font-bold tabular-nums text-slate-500 sm:inline">
+                          {idx + 1}
+                        </span>
+                        <div className="relative h-5 w-7.5 shrink-0 overflow-hidden rounded-[3px] border border-slate-700/70 bg-slate-900 sm:h-5.5 sm:w-8">
+                          <FlagImage country={flag} />
+                          <span className="absolute left-0 top-0 rounded-br bg-black/75 px-0.5 font-mono text-[8px] font-bold leading-tight text-slate-200 sm:hidden">
+                            {idx + 1}
+                          </span>
+                        </div>
+                        <div className="flex min-w-0 flex-1 items-center justify-between gap-1 w-full sm:w-auto">
+                          <span className="w-full truncate text-center text-[9px] font-semibold leading-tight text-slate-100 sm:text-left sm:text-[11px]">
+                            {flag.nameKo}
+                          </span>
+                          {isHit && (
+                            <span
+                              title="핵심 정답 적중"
+                              className="hidden shrink-0 rounded bg-emerald-500 px-1 py-0.5 text-[9px] font-extrabold leading-none text-slate-950 sm:inline"
+                            >
+                              정답
+                            </span>
+                          )}
+                          {isMissed && (
+                            <span
+                              title="핵심 출제 놓침"
+                              className="hidden shrink-0 rounded bg-amber-400 px-1 py-0.5 text-[9px] font-extrabold leading-none text-slate-950 sm:inline"
+                            >
+                              놓침
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+
+              {/* Compact Bottom Action Buttons */}
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 <button
                   type="button"
                   onClick={startRound}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-emerald-400 whitespace-nowrap shrink-0"
+                  className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 whitespace-nowrap sm:min-h-10"
                 >
                   <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>같은 설정으로 다시하기</span>
+                  <span>다시 하기</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPhase('SETUP')}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap shrink-0"
+                  className="inline-flex min-h-9 items-center justify-center rounded-xl border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap sm:min-h-10 sm:px-3"
                 >
-                  <span>설정 변경</span>
+                  설정
+                </button>
+                <button
+                  type="button"
+                  onClick={onBackToLobby}
+                  className="inline-flex min-h-9 items-center justify-center rounded-xl border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100 whitespace-nowrap sm:min-h-10 sm:px-3"
+                >
+                  로비로
                 </button>
               </div>
             </div>
-
-            {/* Score Breakdown & Legend */}
-            <dl className="mt-6 grid grid-cols-3 gap-4 border-t border-slate-800 pt-5">
-              <div>
-                <dt className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>정답</span>
-                </dt>
-                <dd className="mt-1 font-mono text-2xl font-bold tabular-nums text-slate-100">
-                  {resultStats.hits}
-                </dd>
-              </div>
-              <div>
-                <dt className="flex items-center gap-1.5 text-xs font-medium text-rose-400">
-                  <X className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>오답</span>
-                </dt>
-                <dd className="mt-1 font-mono text-2xl font-bold tabular-nums text-slate-100">
-                  {resultStats.wrong}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-amber-300">놓친 정답</dt>
-                <dd className="mt-1 font-mono text-2xl font-bold tabular-nums text-slate-100">
-                  {resultStats.missed}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          {/* 5x5 Visual Grading Grid */}
-          <section className="mt-6">
-            <div
-              className="grid grid-cols-5 gap-1.5 sm:gap-3"
-              aria-label="5x5 국기 채점 결과 배열"
-            >
-              {gridFlags.map((flag) => {
-                const isTarget = targetCodes.has(flag.code);
-                const isSelected = resultStats.selectedSet.has(flag.code);
-
-                let status: 'hit' | 'wrong' | 'missed' | 'neutral' = 'neutral';
-                if (isTarget && isSelected) status = 'hit';
-                else if (!isTarget && isSelected) status = 'wrong';
-                else if (isTarget && !isSelected) status = 'missed';
-
-                const cardStyle =
-                  status === 'hit'
-                    ? 'border-emerald-400 bg-emerald-500/10'
-                    : status === 'wrong'
-                      ? 'border-rose-500 bg-rose-500/10'
-                      : status === 'missed'
-                        ? 'border-amber-400 bg-amber-400/10'
-                        : 'border-slate-800/80 bg-[#131926]/60 opacity-45';
-
-                const labelText =
-                  status === 'hit'
-                    ? '정답'
-                    : status === 'wrong'
-                      ? '오답'
-                      : status === 'missed'
-                        ? '놓침'
-                        : '';
-
-                const labelColor =
-                  status === 'hit'
-                    ? 'text-emerald-400'
-                    : status === 'wrong'
-                      ? 'text-rose-400'
-                      : status === 'missed'
-                        ? 'text-amber-300'
-                        : 'text-slate-500';
-
-                return (
-                  <div
-                    key={flag.code}
-                    className={`flex flex-col overflow-hidden rounded-lg border-2 p-1 sm:rounded-xl sm:p-1.5 ${cardStyle}`}
-                  >
-                    <div className="aspect-[3/2] w-full overflow-hidden rounded bg-[#0B0F17]">
-                      <FlagImage country={flag} />
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-1 px-0.5 text-[10px] sm:mt-1.5 sm:text-xs">
-                      <span className="truncate font-medium text-slate-200">
-                        {flag.nameKo}
-                      </span>
-                      {labelText && (
-                        <span className={`shrink-0 font-bold ${labelColor}`}>
-                          {labelText}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        </main>
-      )}
+          )
+        }
+      />
     </>
   );
 }

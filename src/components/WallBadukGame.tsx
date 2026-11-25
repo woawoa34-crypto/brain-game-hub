@@ -36,6 +36,7 @@ import type {
   WallBadukPhase,
 } from '../games/wallbaduk/types';
 import { soundEngine } from '../utils/sound';
+import { GameBoardLayout, SquareBoardBox } from './GameBoardLayout';
 import { VictoryConfetti } from './VictoryConfetti';
 
 interface WallBadukGameProps {
@@ -769,310 +770,287 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
     <>
       {phase === 'RESULT' && <VictoryConfetti />}
 
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-5 sm:px-6">
-        <button
-          type="button"
-          onClick={phase === 'SETUP' ? onBackToLobby : () => setPhase('SETUP')}
-          className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{phase === 'SETUP' ? '로비로 돌아가기' : '게임 설정으로'}</span>
-        </button>
-
-        <span className="text-xs text-slate-500">
-          7×7 영역 분리 전략 보드게임
-        </span>
-      </div>
-
       {/* SETUP SCREEN */}
       {phase === 'SETUP' && (
-        <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
-          <section className="text-center">
-            <p className="text-xs font-medium text-amber-300">
-              게임 3 · 영역 분리 전략 보드게임
-            </p>
-            <h1 className="mt-2.5 text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl [text-wrap:balance]">
-              벽바둑 2
-            </h1>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
-              사각 말(■)과 원형 말(●)을 이동시키고 칸 경계에 벽을 세워 영토를 확보하세요.
-              모든 플레이어의 말이 서로 다른 구역으로 완전히 분리되면 넓은 영역을 차지한 쪽이 승리합니다.
-            </p>
-          </section>
-
-          {/* Round Mode Selection */}
-          <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="h-full overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
             <button
               type="button"
-              onClick={() => handleRoundModeChange(1)}
-              className={`rounded-2xl border p-5 text-left transition-colors ${
-                roundMode === 1
-                  ? 'border-sky-400 bg-sky-500/10'
-                  : 'border-slate-800 bg-[#131926] hover:border-slate-700'
-              }`}
+              onClick={onBackToLobby}
+              className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-sky-400">3인전</span>
-                {roundMode === 1 && (
-                  <span className="text-xs font-bold text-sky-300">선택됨</span>
-                )}
-              </div>
-              <h2 className="mt-1.5 text-lg font-bold text-slate-100">
-                1라운드 모드 (3인전)
-              </h2>
-              <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
-                P1·P2·P3 각자 사각 말(■) 1개 + 원형 말(●) 1개 보유. 1→2→3, 3→2→1 역순 배치 후
-                진행하며 각자 1회 &lsquo;벽 부수기&rsquo; 사용 가능.
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>로비로 돌아가기</span>
+            </button>
+
+            <span className="text-xs text-slate-500">
+              7×7 영역 분리 전략 보드게임
+            </span>
+          </div>
+
+          <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+            <section className="text-center">
+              <p className="text-xs font-medium text-amber-300">
+                게임 3 · 영역 분리 전략 보드게임
               </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleRoundModeChange(2)}
-              className={`rounded-2xl border p-5 text-left transition-colors ${
-                roundMode === 2
-                  ? 'border-amber-400 bg-amber-500/10'
-                  : 'border-slate-800 bg-[#131926] hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-amber-300">1:1 결승전</span>
-                {roundMode === 2 && (
-                  <span className="text-xs font-bold text-amber-300">선택됨</span>
-                )}
-              </div>
-              <h2 className="mt-1.5 text-lg font-bold text-slate-100">
-                2라운드 모드 (1:1 결승전)
-              </h2>
-              <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
-                P1·P2 각자 원형 말 2개가 대칭 위치에 고정 배치된 채 시작하며 사각 말 2개씩만
-                스네이크 배치합니다. 벽 부수기 사용 불가.
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl [text-wrap:balance]">
+                벽바둑 2
+              </h1>
+              <p className="mt-2.5 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
+                사각 말(■)과 원형 말(●)을 이동시키고 칸 경계에 벽을 세워 영토를 확보하세요.
+                모든 플레이어의 말이 서로 다른 구역으로 완전히 분리되면 넓은 영역을 차지한 쪽이 승리합니다.
               </p>
-            </button>
-          </section>
+            </section>
 
-          {/* Players Setup */}
-          <section className="mt-6 rounded-2xl border border-slate-800 bg-[#131926] p-5 sm:p-6">
-            <h2 className="text-sm font-semibold text-slate-100">
-              참가자 설정 (로컬 멀티플레이 또는 AI 봇)
-            </h2>
+            {/* Round Mode Selection */}
+            <section className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => handleRoundModeChange(1)}
+                className={`rounded-2xl border p-5 text-left transition-colors ${
+                  roundMode === 1
+                    ? 'border-sky-400 bg-sky-500/10'
+                    : 'border-slate-800 bg-[#131926] hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-sky-400">3인전</span>
+                  {roundMode === 1 && (
+                    <span className="text-xs font-bold text-sky-300">선택됨</span>
+                  )}
+                </div>
+                <h2 className="mt-1.5 text-lg font-bold text-slate-100">
+                  1라운드 모드 (3인전)
+                </h2>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+                  P1·P2·P3 각자 사각 말(■) 1개 + 원형 말(●) 1개 보유. 1→2→3, 3→2→1 역순 배치 후
+                  진행하며 각자 1회 &lsquo;벽 부수기&rsquo; 사용 가능.
+                </p>
+              </button>
 
-            <div className="mt-4 space-y-3">
-              {playerConfigs.map((cfg) => {
-                const style = PLAYER_STYLE[cfg.colorKey];
-                return (
-                  <div
-                    key={cfg.id}
-                    className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#0B0F17] p-3.5 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex flex-1 items-center gap-3">
-                      <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold ${style.bgSolid}`}
-                      >
-                        P{cfg.id}
-                      </span>
-                      <label htmlFor={`wb-player-${cfg.id}`} className="sr-only">
-                        플레이어 {cfg.id} 이름
-                      </label>
-                      <input
-                        id={`wb-player-${cfg.id}`}
-                        type="text"
-                        value={cfg.name}
-                        maxLength={14}
-                        onChange={(e) =>
-                          updatePlayerConfig(cfg.id, { name: e.target.value })
-                        }
-                        className="min-h-10 w-full rounded-lg border border-slate-700/80 bg-[#131926] px-3 py-1.5 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
-                      />
+              <button
+                type="button"
+                onClick={() => handleRoundModeChange(2)}
+                className={`rounded-2xl border p-5 text-left transition-colors ${
+                  roundMode === 2
+                    ? 'border-amber-400 bg-amber-500/10'
+                    : 'border-slate-800 bg-[#131926] hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-amber-300">1:1 결승전</span>
+                  {roundMode === 2 && (
+                    <span className="text-xs font-bold text-amber-300">선택됨</span>
+                  )}
+                </div>
+                <h2 className="mt-1.5 text-lg font-bold text-slate-100">
+                  2라운드 모드 (1:1 결승전)
+                </h2>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+                  P1·P2 각자 원형 말 2개가 대칭 위치에 고정 배치된 채 시작하며 사각 말 2개씩만
+                  스네이크 배치합니다. 벽 부수기 사용 불가.
+                </p>
+              </button>
+            </section>
+
+            {/* Players Setup */}
+            <section className="mt-5 rounded-2xl border border-slate-800 bg-[#131926] p-5 sm:p-6">
+              <h2 className="text-sm font-semibold text-slate-100">
+                참가자 설정 (로컬 멀티플레이 또는 AI 봇)
+              </h2>
+
+              <div className="mt-4 space-y-3">
+                {playerConfigs.map((cfg) => {
+                  const style = PLAYER_STYLE[cfg.colorKey];
+                  return (
+                    <div
+                      key={cfg.id}
+                      className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#0B0F17] p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex flex-1 items-center gap-3">
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold ${style.bgSolid}`}
+                        >
+                          P{cfg.id}
+                        </span>
+                        <label htmlFor={`wb-player-${cfg.id}`} className="sr-only">
+                          플레이어 {cfg.id} 이름
+                        </label>
+                        <input
+                          id={`wb-player-${cfg.id}`}
+                          type="text"
+                          value={cfg.name}
+                          maxLength={14}
+                          onChange={(e) =>
+                            updatePlayerConfig(cfg.id, { name: e.target.value })
+                          }
+                          className="min-h-10 w-full rounded-lg border border-slate-700/80 bg-[#131926] px-3 py-1.5 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#131926] p-1">
+                        <button
+                          type="button"
+                          onClick={() => updatePlayerConfig(cfg.id, { isAI: false })}
+                          className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+                            !cfg.isAI
+                              ? 'bg-slate-700 text-slate-100'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          <User className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>사람</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updatePlayerConfig(cfg.id, { isAI: true })}
+                          className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+                            cfg.isAI
+                              ? 'bg-sky-400 text-slate-950'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          <Bot className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>AI 봇</span>
+                        </button>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div className="flex items-center gap-1.5 rounded-lg bg-[#131926] p-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => updatePlayerConfig(cfg.id, { isAI: false })}
-                        className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
-                          !cfg.isAI
-                            ? 'bg-slate-700 text-slate-100'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        <User className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>사람</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updatePlayerConfig(cfg.id, { isAI: true })}
-                        className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
-                          cfg.isAI
-                            ? 'bg-sky-400 text-slate-950'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        <Bot className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>AI 봇</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={startGame}
-              className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 whitespace-nowrap"
-            >
-              <Play className="h-4 w-4" aria-hidden="true" />
-              <span>벽바둑 2 시작하기</span>
-            </button>
-          </section>
-        </main>
+              <button
+                type="button"
+                onClick={startGame}
+                className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 whitespace-nowrap"
+              >
+                <Play className="h-4 w-4" aria-hidden="true" />
+                <span>벽바둑 2 시작하기</span>
+              </button>
+            </section>
+          </main>
+        </div>
       )}
 
-      {/* ACTIVE GAME OR RESULT */}
+      {/* ACTIVE GAME OR RESULT — One-Screen Fold 8 Layout */}
       {(phase === 'PLACEMENT' || phase === 'PLAYING' || phase === 'RESULT') && (
-        <main className="mx-auto w-full max-w-5xl px-3 py-5 sm:px-6 sm:py-7">
-          {/* Top HUD */}
-          <section className="mb-5 rounded-2xl border border-slate-800 bg-[#131926] p-4 sm:p-5">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                  <span>{roundMode === 1 ? '1라운드 (3인전)' : '2라운드 (1:1 결승)'}</span>
-                  <span aria-hidden="true" className="text-slate-600">·</span>
-                  <span>
-                    {phase === 'PLACEMENT'
-                      ? `말 배치 (${placementStep + 1}/${placementSeq.length})`
-                      : phase === 'PLAYING'
-                        ? `${turnCount}턴 진행 중`
-                        : '경기 종료'}
-                  </span>
-                  <span aria-hidden="true" className="text-slate-600">·</span>
-                  <span
-                    className={
-                      boardAnalysis.isFullySeparated
-                        ? 'font-semibold text-emerald-400'
-                        : 'text-slate-300'
-                    }
+        <GameBoardLayout
+          topBar={
+            <div className="rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4 sm:py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                {/* Left: Back + Turn Info */}
+                <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setPhase('SETUP')}
+                    className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-slate-800 bg-[#0B0F17] px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
                   >
-                    {boardAnalysis.isFullySeparated
-                      ? '영역 완전 분리 완료'
-                      : `분리 대기 (공유 구역 ${boardAnalysis.sharedComponentsCount}개)`}
-                  </span>
-                </div>
+                    <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="hidden sm:inline">설정</span>
+                  </button>
 
-                {phase !== 'RESULT' && currentPlayer ? (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-                    <span
-                      className={`inline-flex h-6 items-center rounded-md px-2 font-mono text-xs font-bold ${
-                        PLAYER_STYLE[currentPlayer.colorKey].bgSolid
-                      }`}
-                    >
-                      P{currentPlayer.id}
-                    </span>
-                    <span className="text-base font-bold text-slate-100 sm:text-lg">
-                      {currentPlayer.name}
-                    </span>
-                    {currentPlayer.isAI && (
-                      <span className="text-xs font-medium text-sky-400">
-                        AI 생각 중...
-                      </span>
-                    )}
-                    <span className="text-xs text-slate-400">
-                      {phase === 'PLACEMENT'
-                        ? '· 빈칸을 눌러 말을 배치하세요'
-                        : subPhase === 'SELECT_OR_MOVE'
-                          ? selectedPiece
-                            ? '· 이동할 하이라이트 칸을 선택하세요'
-                            : '· 이동할 내 말을 클릭하세요'
-                          : '· 도착한 칸의 빈 경계선(초록 면)을 눌러 벽을 세우세요'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mt-1.5 flex items-center gap-2 text-base font-bold text-emerald-400 sm:text-lg">
-                    <Trophy className="h-5 w-5" aria-hidden="true" />
-                    <span>{endReason}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* 90-Second Timer */}
-              {phase !== 'RESULT' && (
-                <div className="flex items-center gap-2.5 self-start rounded-xl border border-slate-800 bg-[#0B0F17] px-3.5 py-2 sm:self-center shrink-0">
-                  <Clock
-                    className={`h-4 w-4 ${
-                      timeLeft <= 10
-                        ? 'text-rose-400'
-                        : timeLeft <= 20
-                          ? 'text-amber-300'
-                          : 'text-slate-400'
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <span className="text-xs text-slate-400">남은 시간</span>
-                  <span
-                    className={`font-mono text-xl font-bold tabular-nums ${
-                      timeLeft <= 10
-                        ? 'text-rose-400'
-                        : timeLeft <= 20
-                          ? 'text-amber-300'
-                          : 'text-slate-100'
-                    }`}
-                  >
-                    {timeLeft}s
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Player Status Strip */}
-            <div className="mt-4 grid grid-cols-2 gap-2.5 border-t border-slate-800 pt-3.5 sm:grid-cols-3">
-              {players.map((p) => {
-                const style = PLAYER_STYLE[p.colorKey];
-                const isTurn = phase !== 'RESULT' && currentPlayer?.id === p.id;
-                return (
-                  <div
-                    key={p.id}
-                    className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs ${
-                      isTurn
-                        ? `${style.border} ${style.softBg}`
-                        : 'border-slate-800/80 bg-[#0B0F17]/80'
-                    }`}
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
+                  {phase !== 'RESULT' && currentPlayer ? (
+                    <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                       <span
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded font-mono text-[10px] font-bold ${style.bgSolid}`}
+                        className={`inline-flex h-5 shrink-0 items-center rounded px-1.5 font-mono text-[11px] font-bold ${
+                          PLAYER_STYLE[currentPlayer.colorKey].bgSolid
+                        }`}
                       >
-                        P{p.id}
+                        P{currentPlayer.id}
                       </span>
-                      <span className="truncate font-semibold text-slate-100">
-                        {p.name}
+                      <span className="truncate text-xs font-bold text-slate-100 sm:text-sm">
+                        {currentPlayer.name}
+                      </span>
+                      <span className="hidden text-xs text-slate-400 md:inline">
+                        ·{' '}
+                        {currentPlayer.isAI
+                          ? 'AI 생각 중...'
+                          : phase === 'PLACEMENT'
+                            ? `빈칸 배치 (${placementStep + 1}/${placementSeq.length})`
+                            : subPhase === 'SELECT_OR_MOVE'
+                              ? selectedPiece
+                                ? '이동할 칸 선택'
+                                : '내 말 선택'
+                              : '도착 칸 경계에 벽 설치'}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-slate-400 md:hidden whitespace-nowrap">
+                        {currentPlayer.isAI
+                          ? 'AI 중'
+                          : phase === 'PLACEMENT'
+                            ? `배치 ${placementStep + 1}/${placementSeq.length}`
+                            : subPhase === 'SELECT_OR_MOVE'
+                              ? selectedPiece
+                                ? '칸 선택'
+                                : '말 선택'
+                              : '벽 설치'}
                       </span>
                     </div>
-                    <span className="shrink-0 font-mono tabular-nums text-slate-400">
-                      {roundMode === 1 ? `벽부수기 ${p.wallBreaksLeft}` : '결승'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+                  ) : (
+                    <div className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-emerald-400 sm:text-sm">
+                      <Trophy className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{endReason}</span>
+                    </div>
+                  )}
+                </div>
 
-          {statusNotice && (
-            <div
-              role="status"
-              className="mb-4 rounded-xl border border-sky-500/35 bg-sky-500/10 px-4 py-2.5 text-xs font-medium text-sky-200"
-            >
-              {statusNotice}
-            </div>
-          )}
+                {/* Right: Separation Status + 90s Timer */}
+                <div className="flex shrink-0 items-center gap-2">
+                  <span
+                    className={`hidden text-xs sm:inline whitespace-nowrap ${
+                      boardAnalysis.isFullySeparated
+                        ? 'font-semibold text-emerald-400'
+                        : 'text-slate-400'
+                    }`}
+                  >
+                    {boardAnalysis.isFullySeparated
+                      ? '완전 분리'
+                      : `${turnCount}턴 · 공유 ${boardAnalysis.sharedComponentsCount}`}
+                  </span>
 
-          {/* Main Board + Side Controls / Results */}
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-            {/* 7x7 Board Column */}
-            <section className="lg:col-span-7">
-              <div className="mx-auto w-full max-w-[490px] rounded-2xl border border-slate-800 bg-[#131926] p-3 sm:p-4">
+                  {phase !== 'RESULT' && (
+                    <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-[#0B0F17] px-2.5 py-1">
+                      <Clock
+                        className={`h-3.5 w-3.5 ${
+                          timeLeft <= 10
+                            ? 'text-rose-400'
+                            : timeLeft <= 20
+                              ? 'text-amber-300'
+                              : 'text-slate-400'
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span
+                        className={`font-mono text-sm font-bold tabular-nums sm:text-base ${
+                          timeLeft <= 10
+                            ? 'text-rose-400'
+                            : timeLeft <= 20
+                              ? 'text-amber-300'
+                              : 'text-slate-100'
+                        }`}
+                      >
+                        {timeLeft}s
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          }
+          noticeBar={
+            statusNotice ? (
+              <div
+                role="status"
+                className="truncate rounded-xl border border-sky-500/35 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-200"
+              >
+                {statusNotice}
+              </div>
+            ) : undefined
+          }
+          mainStage={
+            <SquareBoardBox maxPx={620}>
+              <div className="h-full w-full rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:p-3">
                 {/* Outer Wall Border */}
-                <div className="relative aspect-square w-full border-[3px] border-slate-300/80 bg-[#0B0F17] select-none">
+                <div className="relative h-full w-full border-[3px] border-slate-300/80 bg-[#0B0F17] select-none">
                   <div className="grid h-full w-full grid-cols-7 grid-rows-7">
                     {Array.from({ length: BOARD_SIZE }).map((_, r) =>
                       Array.from({ length: BOARD_SIZE }).map((__, c) => {
@@ -1092,7 +1070,6 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                           ? players.find((p) => p.id === soleOwnerId)?.colorKey
                           : undefined;
 
-                        // Territory coloring: vivid in RESULT, subtle hint during play when separated
                         let cellBg = 'bg-[#0F1522]';
                         if (phase === 'RESULT' && soleOwnerColor) {
                           cellBg = PLAYER_STYLE[soleOwnerColor].territoryBg;
@@ -1269,118 +1246,122 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                     )}
                   </div>
                 </div>
+              </div>
+            </SquareBoardBox>
+          }
+          controlPanel={
+            <div className="space-y-2 sm:space-y-3">
+              {/* Compact Player Strip */}
+              {phase !== 'RESULT' && (
+                <div
+                  className={`grid gap-1.5 ${
+                    players.length === 3 ? 'grid-cols-3 sm:grid-cols-1' : 'grid-cols-2 sm:grid-cols-1'
+                  }`}
+                >
+                  {players.map((p) => {
+                    const style = PLAYER_STYLE[p.colorKey];
+                    const isTurn = currentPlayer?.id === p.id;
+                    return (
+                      <div
+                        key={p.id}
+                        className={`flex items-center justify-between gap-1.5 rounded-xl border px-2 py-1.5 text-xs sm:px-3 sm:py-2 ${
+                          isTurn
+                            ? `${style.border} ${style.softBg}`
+                            : 'border-slate-800/80 bg-[#131926]/80'
+                        }`}
+                      >
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded font-mono text-[10px] font-bold ${style.bgSolid}`}
+                          >
+                            P{p.id}
+                          </span>
+                          <span className="truncate font-semibold text-slate-100">
+                            {p.name}
+                          </span>
+                        </div>
+                        <span className="shrink-0 font-mono text-[11px] tabular-nums text-slate-400">
+                          {roundMode === 1 ? `부수기 ${p.wallBreaksLeft}` : '결승'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                {/* Mobile-friendly quick directional wall placement buttons */}
-                {phase === 'PLAYING' && subPhase === 'PLACE_WALL' && emptyEdges.length > 0 && (
-                  <div className="mt-4 rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3">
-                    <p className="text-xs font-semibold text-emerald-300">
-                      도착한 칸의 벽을 세울 방향을 선택하세요 (보드 위 초록선 클릭도 가능)
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      {emptyEdges.map((edge) => (
-                        <button
-                          key={edge.wallKey}
-                          type="button"
-                          onClick={() => executePlaceWall(edge.wallKey)}
-                          className="min-h-10 flex-1 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-emerald-300 whitespace-nowrap"
+              {/* Placement Shape Picker */}
+              {phase === 'PLACEMENT' && currentPlayer && (
+                <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-xs font-bold text-slate-100 sm:text-sm">
+                      말 배치 ({placementStep + 1}/{placementSeq.length})
+                    </h2>
+                    <div className="flex items-center gap-1 text-[10px]">
+                      {placementSeq.map((pid, idx) => (
+                        <span
+                          key={idx}
+                          className={`rounded px-1.5 py-0.5 font-mono ${
+                            idx === placementStep
+                              ? `${PLAYER_STYLE[players.find((p) => p.id === pid)?.colorKey ?? 'sky'].bgSolid} font-bold`
+                              : idx < placementStep
+                                ? 'bg-slate-800 text-slate-500 line-through'
+                                : 'bg-slate-800/70 text-slate-400'
+                          }`}
                         >
-                          {edge.label} 벽 설치
-                        </button>
+                          P{pid}
+                        </span>
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
-            </section>
-
-            {/* Side Panel: Controls / Placement Picker / Final Results */}
-            <section className="space-y-4 lg:col-span-5">
-              {/* Placement Shape Picker */}
-              {phase === 'PLACEMENT' && currentPlayer && (
-                <div className="rounded-2xl border border-slate-800 bg-[#131926] p-5">
-                  <h2 className="text-sm font-bold text-slate-100">
-                    말 배치 순서 ({placementStep + 1} / {placementSeq.length})
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {roundMode === 1
-                      ? '1→2→3 순서로 첫 번째 말을 배치한 뒤, 3→2→1 역순으로 두 번째 말을 배치합니다.'
-                      : '고정된 원형 말(●) 외에 각자 사각 말(■) 2개를 P1→P2→P2→P1 순서로 배치합니다.'}
-                  </p>
 
                   {!currentPlayer.isAI && remainingShapesForPlacer.length > 0 && (
-                    <div className="mt-4">
-                      <span className="text-xs font-medium text-slate-400">
-                        배치할 말 모양
-                      </span>
-                      <div className="mt-2 grid grid-cols-2 gap-2.5">
-                        {remainingShapesForPlacer.map((shape) => (
+                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                      {remainingShapesForPlacer.map((shape) => (
+                        <button
+                          key={shape}
+                          type="button"
+                          onClick={() => setChosenShape(shape)}
+                          className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
+                            chosenShape === shape
+                              ? 'border-sky-400 bg-sky-500/15 text-sky-300'
+                              : 'border-slate-700 bg-[#0B0F17] text-slate-300 hover:border-slate-600'
+                          }`}
+                        >
+                          <span>{shape === 'square' ? '■ 사각 말' : '● 원형 말'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Playing Phase Controls & Directional Wall Buttons */}
+              {phase === 'PLAYING' && currentPlayer && (
+                <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4 space-y-2.5 sm:space-y-3.5">
+                  {/* Directional Quick Wall Placement Buttons (during PLACE_WALL) */}
+                  {subPhase === 'PLACE_WALL' && emptyEdges.length > 0 && (
+                    <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-2.5">
+                      <p className="text-[11px] font-semibold text-emerald-300">
+                        벽 설치 방향 선택 (보드 초록선 터치 가능)
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-1.5">
+                        {emptyEdges.map((edge) => (
                           <button
-                            key={shape}
+                            key={edge.wallKey}
                             type="button"
-                            onClick={() => setChosenShape(shape)}
-                            className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
-                              chosenShape === shape
-                                ? 'border-sky-400 bg-sky-500/15 text-sky-300'
-                                : 'border-slate-700 bg-[#0B0F17] text-slate-300 hover:border-slate-600'
-                            }`}
+                            onClick={() => executePlaceWall(edge.wallKey)}
+                            className="min-h-10 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-emerald-300 whitespace-nowrap"
                           >
-                            <span>{shape === 'square' ? '■ 사각 말' : '● 원형 말'}</span>
+                            {edge.label} 벽
                           </button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <div className="mt-4 flex flex-wrap items-center gap-1.5 text-xs">
-                    {placementSeq.map((pid, idx) => (
-                      <span
-                        key={idx}
-                        className={`rounded px-2 py-0.5 font-mono ${
-                          idx === placementStep
-                            ? `${PLAYER_STYLE[players.find((p) => p.id === pid)?.colorKey ?? 'sky'].bgSolid} font-bold`
-                            : idx < placementStep
-                              ? 'bg-slate-800 text-slate-500 line-through'
-                              : 'bg-slate-800/70 text-slate-400'
-                        }`}
-                      >
-                        P{pid}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Playing Phase Controls & Wall Break Ability */}
-              {phase === 'PLAYING' && currentPlayer && (
-                <div className="rounded-2xl border border-slate-800 bg-[#131926] p-5 space-y-4">
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-100">말 이동 안내</h2>
-                    <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-slate-400">
-                      <li>
-                        <span className="font-semibold text-slate-200">■ 사각 말:</span> 상·하·좌·우
-                        한 방향으로 직선 1칸 또는 2칸 이동
-                      </li>
-                      <li>
-                        <span className="font-semibold text-slate-200">● 원형 말:</span> 1칸 이동
-                        또는 1칸 후 90도 꺾어 1칸 더 이동 (총 2칸)
-                      </li>
-                      <li>
-                        이동 후 도착한 칸의 빈 면 중 1곳에 반드시 벽을 세워 턴을 마칩니다.
-                      </li>
-                    </ul>
-                  </div>
-
+                  {/* Wall Break Skill (Round 1 only) */}
                   {roundMode === 1 && (
-                    <div className="border-t border-slate-800 pt-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-slate-200">
-                          특수 능력 · 벽 부수기
-                        </span>
-                        <span className="font-mono text-xs tabular-nums text-slate-400">
-                          잔여 {currentPlayer.wallBreaksLeft}회
-                        </span>
-                      </div>
-
+                    <div>
                       <button
                         type="button"
                         disabled={
@@ -1389,103 +1370,115 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                           currentPlayer.wallBreaksLeft <= 0
                         }
                         onClick={() => setWallBreakActive((prev) => !prev)}
-                        className={`mt-2.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                        className={`flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 ${
                           wallBreakActive
                             ? 'border-amber-400 bg-amber-400 text-slate-950'
                             : 'border-slate-700 bg-[#0B0F17] text-slate-200 hover:border-amber-400/60'
                         }`}
                       >
-                        <Hammer className="h-4 w-4" aria-hidden="true" />
-                        <span>
+                        <Hammer className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="truncate">
                           {wallBreakActive
-                            ? '벽 부수기 활성화됨 (취소하려면 클릭)'
+                            ? '벽 부수기 활성화됨 (취소)'
                             : currentPlayer.wallBreaksLeft > 0
-                              ? '벽 부수기 사용하기 (1회 한정)'
+                              ? `벽 부수기 사용 (잔여 ${currentPlayer.wallBreaksLeft}회)`
                               : '벽 부수기 소진됨'}
                         </span>
                       </button>
 
                       {wallBreakActive && (
-                        <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-300">
-                          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                          <span>
-                            경로상 벽 1개를 부수고 지나갈 수 있는 주황색 칸을 선택하세요.
-                          </span>
+                        <p className="mt-1.5 flex items-center gap-1 text-[11px] text-amber-300">
+                          <ShieldAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span>주황색 칸 선택 시 경로의 벽 1개를 파괴합니다.</span>
                         </p>
                       )}
                     </div>
                   )}
+
+                  {/* Movement Legend: compact 1-line on mobile, detailed on Fold unfolded */}
+                  <div className="border-t border-slate-800/80 pt-2 text-[11px] text-slate-400 sm:pt-3 sm:text-xs">
+                    <p className="sm:hidden">
+                      <strong className="text-slate-200">■</strong> 직선 1~2칸 ·{' '}
+                      <strong className="text-slate-200">●</strong> 1칸/꺾어 2칸 · 이동 후 벽 설치
+                    </p>
+                    <ul className="hidden space-y-1.5 leading-relaxed sm:block">
+                      <li>
+                        <span className="font-semibold text-slate-200">■ 사각 말:</span> 상·하·좌·우 직선 1~2칸 이동
+                      </li>
+                      <li>
+                        <span className="font-semibold text-slate-200">● 원형 말:</span> 1칸 또는 90° 꺾어 총 2칸 이동
+                      </li>
+                      <li>
+                        이동 후 도착 칸의 빈 면에 벽 1개를 설치해 턴을 마칩니다.
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               )}
 
               {/* Result Scoreboard */}
               {phase === 'RESULT' && (
-                <div className="rounded-2xl border border-slate-800 bg-[#131926] p-5 sm:p-6">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                <div className="rounded-xl border border-slate-800 bg-[#131926] p-3.5 sm:rounded-2xl sm:p-5">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
                     <Trophy className="h-4 w-4" aria-hidden="true" />
                     <span>최종 영역 점수 판정</span>
                   </div>
 
-                  <p className="mt-1.5 text-xs text-slate-400">
-                    각 플레이어의 말이 속한 독립 구역 칸 수를 합산합니다(동일 구역 중복 제외).
-                    동률 시 가장 넓은 단일 구역 칸 수로 승자를 가립니다.
-                  </p>
-
-                  <div className="mt-4 space-y-2.5">
+                  <div className="mt-2.5 space-y-2">
                     {finalScores.map((res) => {
                       const style = PLAYER_STYLE[res.colorKey];
                       return (
                         <div
                           key={res.playerId}
-                          className={`rounded-xl border p-3.5 ${
+                          className={`rounded-xl border px-3 py-2 ${
                             res.isWinner
                               ? `${style.border} ${style.softBg}`
                               : 'border-slate-800 bg-[#0B0F17]'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="font-mono text-sm font-bold text-slate-400">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-slate-400">
                                 {res.rank}위
                               </span>
                               <span
-                                className={`flex h-6 w-6 items-center justify-center rounded font-mono text-xs font-bold ${style.bgSolid}`}
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded font-mono text-[10px] font-bold ${style.bgSolid}`}
                               >
                                 P{res.playerId}
                               </span>
-                              <span className="font-bold text-slate-100">
+                              <span className="truncate text-xs font-bold text-slate-100 sm:text-sm">
                                 {res.name}
                               </span>
                               {res.isWinner && (
-                                <span className="text-xs font-bold text-emerald-400">
+                                <span className="shrink-0 text-[11px] font-bold text-emerald-400">
                                   승리
                                 </span>
                               )}
                             </div>
 
-                            <span className="font-mono text-xl font-bold tabular-nums text-slate-100">
+                            <span className="shrink-0 font-mono text-base font-bold tabular-nums text-slate-100 sm:text-lg">
                               {res.totalCells}
-                              <span className="ml-0.5 font-sans text-xs font-normal text-slate-400">
+                              <span className="ml-0.5 font-sans text-[11px] font-normal text-slate-400">
                                 칸
                               </span>
                             </span>
                           </div>
 
-                          <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
+                          <div className="mt-1 hidden items-center gap-2 text-[11px] text-slate-400 sm:flex">
                             <span>독립 구역 {res.componentCount}개</span>
                             <span aria-hidden="true" className="text-slate-600">·</span>
-                            <span>최대 단일 구역 {res.maxComponentCells}칸</span>
+                            <span>최대 구역 {res.maxComponentCells}칸</span>
                           </div>
                         </div>
                       );
                     })}
                   </div>
 
-                  <div className="mt-5 flex flex-wrap gap-2.5">
+                  <div className="mt-3 flex gap-2 sm:mt-4">
                     <button
                       type="button"
                       onClick={startGame}
-                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-amber-300 whitespace-nowrap"
+                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-amber-300 whitespace-nowrap sm:min-h-11"
                     >
                       <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>다시하기</span>
@@ -1493,16 +1486,16 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                     <button
                       type="button"
                       onClick={() => setPhase('SETUP')}
-                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap"
+                      className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap sm:min-h-11"
                     >
                       설정 변경
                     </button>
                   </div>
                 </div>
               )}
-            </section>
-          </div>
-        </main>
+            </div>
+          }
+        />
       )}
     </>
   );
