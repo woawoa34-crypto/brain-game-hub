@@ -39,29 +39,35 @@ export function RulesModal({ open, onClose }: RulesModalProps) {
             <h3 className="font-semibold text-sky-400">게임 1. 말결 (AI 유사어 추리)</h3>
             <p className="mt-1 text-slate-400">
               솔로 모드에서는 AI가 한국어 일반 명사 1개를 출제하고, 출제자 모드에서는 직접 입력한
-              단어가 마스킹됩니다. 힌트 단어를 입력하면{' '}
-              <span className="font-mono text-xs text-slate-300">gemini-embedding-001</span>이
-              코사인 유사도를 계산해 0.45~0.96 구간을 0%~100%로 정규화하여 높은 순으로 정렬합니다.
+              단어가 마스킹됩니다. 힌트 단어를 입력하면 AI가 5단계 한국어 연상·의미 채점 기준표에 따라
+              유사도 점수(0%~100%)와 짧은 근거를 함께 제공합니다.
             </p>
             <dl className="mt-2.5 space-y-1.5 border-t border-slate-800 pt-2.5 text-xs">
               <div className="flex items-center justify-between gap-3">
                 <dt className="flex items-center gap-2 text-emerald-400 font-medium">
                   <span className="h-2 w-5 rounded-full bg-emerald-500" aria-hidden="true" />
-                  <span>80% 이상 · 매우 가까움</span>
+                  <span>90% 이상 · 핵심 연관어</span>
                 </dt>
-                <dd className="text-slate-400">정답과 밀접한 단어</dd>
+                <dd className="text-slate-400">동의어·핵심 1순위 짝꿍</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="flex items-center gap-2 text-emerald-300 font-medium">
+                  <span className="h-2 w-5 rounded-full bg-emerald-500/75" aria-hidden="true" />
+                  <span>70% ~ 89.9% · 밀접한 관련</span>
+                </dt>
+                <dd className="text-slate-400">동일 범주·밀접한 상황</dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="flex items-center gap-2 text-amber-300 font-medium">
                   <span className="h-2 w-5 rounded-full bg-amber-400" aria-hidden="true" />
-                  <span>50% ~ 79.9% · 관련 있음</span>
+                  <span>45% ~ 69.9% · 간접 연상</span>
                 </dt>
-                <dd className="text-slate-400">유사한 범주의 단어</dd>
+                <dd className="text-slate-400">공통 속성·간접 연결</dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="flex items-center gap-2 text-slate-400 font-medium">
                   <span className="h-2 w-5 rounded-full bg-slate-500" aria-hidden="true" />
-                  <span>50% 미만 · 거리가 멈</span>
+                  <span>45% 미만 · 약한/무관</span>
                 </dt>
                 <dd className="text-slate-400">다른 방향을 탐색해보세요</dd>
               </div>
@@ -90,8 +96,8 @@ export function RulesModal({ open, onClose }: RulesModalProps) {
             <h3 className="font-semibold text-violet-300">게임 4. 블라인드 미로 탈출</h3>
             <p className="mt-1 text-slate-400">
               6×6 또는 7×7 무작위 미로를 3초 또는 5초 동안 기억한 뒤, 벽과 출구(E)가 가려진 상태에서
-              바라보는 시점 기준의 [좌회전 90°], [앞으로 1칸 전진], [우회전 90°]만으로 탈출합니다.
-              솔로 타임어택과 2인 턴제 레이스(1턴 2행동)를 즐길 수 있습니다.
+              상·하·좌·우 4방향 화살표(D-Pad)를 눌러 1칸씩 이동해 탈출합니다.
+              솔로 타임어택과 2인 턴제 레이스(1회 이동마다 턴 교대)를 즐길 수 있습니다.
             </p>
           </div>
 

@@ -1,210 +1,252 @@
-import { ArrowRight, Compass, Flag, Grid3x3, Layers2, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  Compass,
+  Flag,
+  Globe,
+  Grid3x3,
+  Layers2,
+  Sparkles,
+  User,
+} from 'lucide-react';
 import type { ActiveGame } from '../types';
+import type { OnlineRole, OnlineRoomData } from '../types/online';
+import { OnlineLobbyPanel } from './OnlineLobbyPanel';
+
+export type LobbyMode = 'local' | 'online';
 
 interface LobbyScreenProps {
   savedApiKey: string;
   hasServerKey: boolean;
+  lobbyMode: LobbyMode;
+  onLobbyModeChange: (mode: LobbyMode) => void;
   onSelectGame: (game: Exclude<ActiveGame, 'LOBBY'>) => void;
+  // Online multiplayer props
+  nickname: string;
+  onNicknameChange: (name: string) => void;
+  onlineRoom: OnlineRoomData | null;
+  myRole: OnlineRole | null;
+  initialJoinCode?: string;
+  onlineBusy: boolean;
+  onlineError: string | null;
+  onCreateRoom: () => void;
+  onJoinRoom: (code: string) => void;
+  onLeaveRoom: () => void;
+  onClearOnlineError: () => void;
 }
 
 export function LobbyScreen({
   savedApiKey,
   hasServerKey,
+  lobbyMode,
+  onLobbyModeChange,
   onSelectGame,
+  nickname,
+  onNicknameChange,
+  onlineRoom,
+  myRole,
+  initialJoinCode,
+  onlineBusy,
+  onlineError,
+  onCreateRoom,
+  onJoinRoom,
+  onLeaveRoom,
+  onClearOnlineError,
 }: LobbyScreenProps) {
+  const apiReady = Boolean(savedApiKey.trim()) || hasServerKey;
+
+  const games: Array<{
+    id: Exclude<ActiveGame, 'LOBBY'>;
+    tag: string;
+    title: string;
+    desc: string;
+    meta: string;
+    cta: string;
+    icon: typeof Sparkles;
+    accentText: string;
+    ctaBg: string;
+  }> = [
+    {
+      id: 'WORD_GAME',
+      tag: '게임 1 · AI 의미 추리',
+      title: '말결 (유사어 추리)',
+      desc: '한국어 연상·유사도 5단계 채점으로 숨겨진 정답 단어를 맞혀보세요.',
+      meta: apiReady ? 'API 연결 준비됨' : 'Gemini API 키 필요',
+      cta: '플레이',
+      icon: Sparkles,
+      accentText: 'text-sky-400',
+      ctaBg: 'bg-sky-400 hover:bg-sky-300',
+    },
+    {
+      id: 'FLAG_GAME',
+      tag: '게임 2 · 순간 시각 기억',
+      title: '국기 기억력 테스트',
+      desc: '빠르게 지나가는 10개 국기를 기억해 5×5 배열에서 5개를 찾아내세요.',
+      meta: '70개국 · 키 불필요',
+      cta: '시작',
+      icon: Flag,
+      accentText: 'text-emerald-400',
+      ctaBg: 'bg-emerald-500 hover:bg-emerald-400',
+    },
+    {
+      id: 'WALLBADUK_GAME',
+      tag: '게임 3 · 영역 분리 전략',
+      title: '벽바둑 2',
+      desc: '7×7 보드에서 사각·원형 말을 이동하고 내 색상의 벽을 세워 영토를 점령하세요.',
+      meta: '3인전/1:1 · AI 봇',
+      cta: '시작',
+      icon: Grid3x3,
+      accentText: 'text-amber-300',
+      ctaBg: 'bg-amber-400 hover:bg-amber-300',
+    },
+    {
+      id: 'BLIND_MAZE_GAME',
+      tag: '게임 4 · 인지 지도',
+      title: '블라인드 미로 탈출',
+      desc: '3~5초간 공개된 미로를 기억해 어둠 속에서 4방향 화살표로 탈출하세요.',
+      meta: '솔로 & 2인 레이스',
+      cta: '시작',
+      icon: Compass,
+      accentText: 'text-violet-300',
+      ctaBg: 'bg-violet-400 hover:bg-violet-300',
+    },
+    {
+      id: 'GRADIENT_CUP_GAME',
+      tag: '게임 5 · 7개의 컵 심리전',
+      title: '그라데이션 컵 심리전',
+      desc: '대칭 그라데이션 색상의 7개 컵 색상만 보고 상대 숫자를 추리하세요.',
+      meta: '1인 vs AI & 2인 대전',
+      cta: '시작',
+      icon: Layers2,
+      accentText: 'text-cyan-300',
+      ctaBg: 'bg-cyan-400 hover:bg-cyan-300',
+    },
+  ];
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-      <section className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-medium text-sky-400">
-          한국어 두뇌 서바이벌 미니게임 허브
-        </p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-50 sm:text-5xl [text-wrap:balance]">
-          어휘 추리와 순간 기억력, 전략 심리전에 도전하세요
-        </h1>
-        <p className="mt-4 text-sm leading-relaxed text-slate-400 sm:text-base [text-wrap:balance]">
-          말결, 국기 기억력 테스트, 벽바둑 2, 블라인드 미로 탈출, 그라데이션 컵 심리전까지
-          다섯 가지 두뇌 서바이벌 게임을 한 곳에서 즐길 수 있습니다.
-        </p>
-      </section>
+    <main className="mx-auto flex h-full w-full max-w-6xl flex-col justify-between overflow-y-auto px-3 py-2 sm:overflow-hidden sm:px-5 sm:py-4">
+      {/* Compact Header + Local / Online Mode Switcher */}
+      <section className="flex shrink-0 flex-col items-center justify-between gap-2 sm:flex-row sm:gap-4">
+        <div className="text-center sm:text-left">
+          <p className="text-[11px] font-medium text-sky-400 sm:text-xs">
+            한국어 두뇌 서바이벌 미니게임 허브
+          </p>
+          <h1 className="mt-0.5 text-lg font-bold tracking-tight text-slate-50 sm:text-2xl [text-wrap:balance]">
+            {lobbyMode === 'online'
+              ? '🌐 실시간 온라인 친구 대전'
+              : '어휘 추리 · 순간 기억력 · 전략 심리전'}
+          </h1>
+        </div>
 
-      {/* Five Game Selection Cards */}
-      <section
-        aria-label="미니게임 선택"
-        className="mt-10 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
-      >
-        {/* Game 1: 말결 */}
-        <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-sky-400">
-              <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>게임 1 · Gemini 임베딩 추리</span>
-            </div>
-            <h2 className="mt-3 text-xl font-bold text-slate-50">
-              말결 (AI 유사어 추리)
-            </h2>
-            <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
-              출제자 모드 또는 AI 솔로 모드로 숨겨진 정답 단어를 맞혀보세요.
-              힌트 단어를 입력하면 <span className="font-mono text-xs text-slate-300">gemini-embedding-001</span>이
-              의미 유사도를 0%~100%로 계산해 높은 순으로 정렬합니다.
-            </p>
-          </div>
-
-          <div className="mt-7 space-y-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-              <span>출제자 & 솔로 모드</span>
-              <span aria-hidden="true" className="text-slate-600">·</span>
-              <span>
-                {savedApiKey || hasServerKey ? 'API 연결 준비됨' : 'Gemini API 키 필요'}
+        {/* Mode Switcher */}
+        <div
+          role="tablist"
+          aria-label="플레이 방식 선택"
+          className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-800 bg-[#131926] p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={lobbyMode === 'local'}
+            onClick={() => onLobbyModeChange('local')}
+            className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors whitespace-nowrap ${
+              lobbyMode === 'local'
+                ? 'bg-sky-400 text-slate-950'
+                : 'text-slate-400 hover:text-slate-100'
+            }`}
+          >
+            <User className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>로컬 플레이</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={lobbyMode === 'online'}
+            onClick={() => onLobbyModeChange('online')}
+            className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors whitespace-nowrap ${
+              lobbyMode === 'online'
+                ? 'bg-emerald-500 text-slate-950'
+                : 'text-slate-400 hover:text-slate-100'
+            }`}
+          >
+            <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>🌐 온라인 친구 대전</span>
+            {onlineRoom && (
+              <span className="ml-0.5 rounded bg-slate-950/20 px-1.5 py-0.5 font-mono text-[10px]">
+                {onlineRoom.roomCode}
               </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onSelectGame('WORD_GAME')}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-sky-400 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-sky-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 whitespace-nowrap"
-            >
-              <span>말결 플레이하기</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-        </article>
-
-        {/* Game 2: 국기 기억력 테스트 */}
-        <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-emerald-400">
-              <Flag className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>게임 2 · 순간 시각 기억력</span>
-            </div>
-            <h2 className="mt-3 text-xl font-bold text-slate-50">
-              국기 기억력 테스트
-            </h2>
-            <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
-              빠르게 지나가는 10개의 실제 국기를 지정한 사이클만큼 반복 관찰한 뒤,
-              5×5 배열의 25개 국기 중 앞서 본 5개 국기를 정확히 찾아내는 집중력 게임입니다.
-            </p>
-          </div>
-
-          <div className="mt-7 space-y-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-              <span>70개국 실제 국기</span>
-              <span aria-hidden="true" className="text-slate-600">·</span>
-              <span className="text-emerald-300/90">API 키 없이 바로 실행</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onSelectGame('FLAG_GAME')}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 whitespace-nowrap"
-            >
-              <span>국기 기억력 테스트 시작</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-        </article>
-
-        {/* Game 3: 벽바둑 2 */}
-        <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-amber-300">
-              <Grid3x3 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>게임 3 · 영역 분리 전략</span>
-            </div>
-            <h2 className="mt-3 text-xl font-bold text-slate-50">
-              벽바둑 2
-            </h2>
-            <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
-              7×7 보드 위에서 사각·원형 말을 움직이고 벽을 설치해 영역을 분리하세요.
-              1라운드 3인전(벽 부수기 1회)과 2라운드 1:1 결승전, 로컬 멀티 및 AI 봇을 지원합니다.
-            </p>
-          </div>
-
-          <div className="mt-7 space-y-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-              <span>로컬 대전 & AI 봇</span>
-              <span aria-hidden="true" className="text-slate-600">·</span>
-              <span className="text-amber-300/90">API 키 없이 바로 실행</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onSelectGame('WALLBADUK_GAME')}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 whitespace-nowrap"
-            >
-              <span>벽바둑 2 시작하기</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-        </article>
-
-        {/* Game 4: 블라인드 미로 탈출 */}
-        <article className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-violet-300">
-              <Compass className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>게임 4 · 인지 지도 & 시점 회전</span>
-            </div>
-            <h2 className="mt-3 text-xl font-bold text-slate-50">
-              블라인드 미로 탈출
-            </h2>
-            <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
-              3~5초간 공개되는 6×6·7×7 미로를 기억한 뒤, 어둠 속에서 [좌회전 90°]·[전진]·[우회전 90°]만으로
-              출구를 찾으세요. 솔로 타임어택과 2인 턴제 레이스를 지원합니다.
-            </p>
-          </div>
-
-          <div className="mt-7 space-y-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-              <span>솔로 타임어택 & 2인 레이스</span>
-              <span aria-hidden="true" className="text-slate-600">·</span>
-              <span className="text-violet-300/90">API 키 없이 바로 실행</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onSelectGame('BLIND_MAZE_GAME')}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-400 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-violet-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 whitespace-nowrap"
-            >
-              <span>블라인드 미로 시작하기</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-        </article>
-
-        {/* Game 5: 그라데이션 컵 심리전 */}
-        <article className="flex flex-col justify-between gap-6 rounded-2xl border border-slate-800 bg-[#131926] p-6 transition-colors duration-150 hover:border-slate-700 sm:p-7 md:col-span-2 md:flex-row md:items-center">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2 text-xs font-medium text-cyan-300">
-              <Layers2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>게임 5 · 7개의 컵 색상 심리전</span>
-            </div>
-            <h2 className="mt-2.5 text-xl font-bold text-slate-50">
-              그라데이션 컵 심리전 (7개의 컵)
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              양 끝(1·7번)이 가장 짙고 가운데(4번)가 가장 옅은 대칭 색상의 7개 컵에
-              0~9 숫자를 비내림차순(총합 30 이하)으로 배치한 뒤, 가림막 위 컵 색상만 보고 수 싸움을 펼치세요.
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-              <span>1인 vs AI 봇 & 2인 로컬 대전</span>
-              <span aria-hidden="true" className="text-slate-600">·</span>
-              <span className="text-cyan-300/90">API 키 없이 바로 실행</span>
-            </div>
-          </div>
-
-          <div className="shrink-0 md:w-64">
-            <button
-              type="button"
-              onClick={() => onSelectGame('GRADIENT_CUP_GAME')}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-slate-950 transition-colors duration-150 hover:bg-cyan-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 whitespace-nowrap"
-            >
-              <span>7개의 컵 시작하기</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-        </article>
+            )}
+          </button>
+        </div>
       </section>
+
+      {lobbyMode === 'online' ? (
+        <section className="mt-2.5 min-h-0 flex-1 sm:mt-3.5">
+          <OnlineLobbyPanel
+            nickname={nickname}
+            onNicknameChange={onNicknameChange}
+            room={onlineRoom}
+            myRole={myRole}
+            initialJoinCode={initialJoinCode}
+            isBusy={onlineBusy}
+            errorMessage={onlineError}
+            onCreateRoom={onCreateRoom}
+            onJoinRoom={onJoinRoom}
+            onLeaveRoom={onLeaveRoom}
+            onClearError={onClearOnlineError}
+          />
+        </section>
+      ) : (
+        <section
+          aria-label="미니게임 선택"
+          className="mt-2.5 grid min-h-0 flex-1 grid-cols-1 gap-2 sm:mt-3.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3"
+        >
+          {games.map((game, index) => {
+            const Icon = game.icon;
+            const spanLastOnMd =
+              index === games.length - 1 ? 'sm:col-span-2 lg:col-span-2' : '';
+
+            return (
+              <article
+                key={game.id}
+                onClick={() => onSelectGame(game.id)}
+                className={`group flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800 bg-[#131926] p-3 transition-colors duration-150 hover:border-slate-600 sm:flex-col sm:items-stretch sm:justify-between sm:rounded-2xl sm:p-4 lg:p-5 ${spanLastOnMd}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div
+                    className={`flex items-center gap-1.5 text-[11px] font-medium sm:text-xs ${game.accentText}`}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden="true" />
+                    <span className="truncate">{game.tag}</span>
+                  </div>
+                  <h2 className="mt-0.5 truncate text-sm font-bold text-slate-50 sm:mt-2 sm:text-lg">
+                    {game.title}
+                  </h2>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-400 sm:mt-1.5 sm:line-clamp-2 sm:text-xs sm:leading-relaxed">
+                    {game.desc}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center justify-between gap-2 sm:mt-3 sm:border-t sm:border-slate-800/80 sm:pt-3">
+                  <span className="hidden truncate text-xs text-slate-400 sm:inline">
+                    {game.meta}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectGame(game.id);
+                    }}
+                    className={`inline-flex min-h-9 items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 sm:min-h-10 sm:rounded-xl sm:px-4 whitespace-nowrap ${game.ctaBg}`}
+                  >
+                    <span>{game.cta}</span>
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      )}
     </main>
   );
 }

@@ -4,12 +4,15 @@ import {
   Bot,
   Clock,
   Hammer,
+  Home,
+  Loader2,
   Play,
   RotateCcw,
   ShieldAlert,
   Trophy,
   User,
 } from 'lucide-react';
+import { set as fbSet, update as fbUpdate } from 'firebase/database';
 import {
   analyzeBoard,
   BOARD_SIZE,
@@ -35,21 +38,54 @@ import type {
   TurnSubPhase,
   WallBadukPhase,
 } from '../games/wallbaduk/types';
+import {
+  getRoomGameStateRef,
+  recordMatchWinnerScore,
+  rematchSameGame,
+  resolveHostRole,
+} from '../services/onlineRoom';
+import type {
+  OnlineGameSharedProps,
+  OnlineRole,
+  OnlineWallBadukState,
+} from '../types/online';
 import { soundEngine } from '../utils/sound';
 import { GameBoardLayout, SquareBoardBox } from './GameBoardLayout';
 import { VictoryConfetti } from './VictoryConfetti';
 
-interface WallBadukGameProps {
+interface WallBadukGameProps extends OnlineGameSharedProps {
   onBackToLobby: () => void;
 }
 
-const TURN_SECONDS = 90;
+const LOCAL_TURN_SECONDS = 90;
+const ONLINE_TURN_SECONDS = 45;
+
+function wallsRecordToMap(record?: Record<string, number> | null): Map<string, number> {
+  const map = new Map<string, number>();
+  if (!record) return map;
+  for (const [k, v] of Object.entries(record)) {
+    if (typeof v === 'number') {
+      map.set(k, v);
+    }
+  }
+  return map;
+}
+
+function wallsMapToRecord(map: Map<string, number>): Record<string, number> {
+  const rec: Record<string, number> = {};
+  map.forEach((v, k) => {
+    rec[k] = v;
+  });
+  return rec;
+}
 
 const PLAYER_STYLE: Record<
   'sky' | 'rose' | 'amber',
   {
     text: string;
     bgSolid: string;
+    wallBarBg: string;
+    wallGlow: string;
     border: string;
     softBg: string;
     ring: string;
@@ -61,6 +97,8 @@ const PLAYER_STYLE: Record<
   sky: {
     text: 'text-sky-300',
     bgSolid: 'bg-sky-400 text-slate-950',
+    wallBarBg: 'bg-sky-400',
+    wallGlow: 'shadow-[0_0_8px_rgba(56,189,248,0.65)]',
     border: 'border-sky-400',
     softBg: 'bg-sky-500/15',
     ring: 'ring-sky-400',
@@ -71,6 +109,8 @@ const PLAYER_STYLE: Record<
   rose: {
     text: 'text-rose-300',
     bgSolid: 'bg-rose-400 text-slate-950',
+    wallBarBg: 'bg-rose-400',
+    wallGlow: 'shadow-[0_0_8px_rgba(251,113,133,0.65)]',
     border: 'border-rose-400',
     softBg: 'bg-rose-500/15',
     ring: 'ring-rose-400',
@@ -81,6 +121,8 @@ const PLAYER_STYLE: Record<
   amber: {
     text: 'text-amber-300',
     bgSolid: 'bg-amber-400 text-slate-950',
+    wallBarBg: 'bg-amber-400',
+    wallGlow: 'shadow-[0_0_8px_rgba(251,191,36,0.65)]',
     border: 'border-amber-400',
     softBg: 'bg-amber-500/15',
     ring: 'ring-amber-400',
@@ -101,17 +143,32 @@ function makeDefaultPlayers(roundMode: RoundMode): PlayerConfig[] {
   return base;
 }
 
-export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
+export function WallBadukGame({
+  onBackToLobby,
+  isPaused = false,
+  onlineRoom = null,
+  myRole = null,
+  onReturnToWaitingRoom,
+  onlineReactionBar,
+}: WallBadukGameProps) {
+  const isOnline = Boolean(onlineRoom && myRole);
+  const hostRole = resolveHostRole(onlineRoom);
+  const isHost = isOnline && myRole === hostRole;
+  const firstTurnRole: OnlineRole = onlineRoom?.firstTurnRole ?? 'P1';
+  const matchNumber = onlineRoom?.matchNumber ?? 1;
+  const onlineWB = onlineRoom?.gameState?.wallBaduk ?? null;
+  const turnLimitSeconds = isOnline ? ONLINE_TURN_SECONDS : LOCAL_TURN_SECONDS;
+
   const [phase, setPhase] = useState<WallBadukPhase>('SETUP');
   const [roundMode, setRoundMode] = useState<RoundMode>(1);
   const [playerConfigs, setPlayerConfigs] = useState<PlayerConfig[]>(() =>
     makeDefaultPlayers(1),
   );
 
-  // Active game state
+  // Active game state (walls maps wallKey -> owner playerId)
   const [players, setPlayers] = useState<PlayerState[]>([]);
   const [pieces, setPieces] = useState<Piece[]>([]);
-  const [walls, setWalls] = useState<Set<string>>(() => new Set());
+  const [walls, setWalls] = useState<Map<string, number>>(() => new Map());
   const [placementSeq, setPlacementSeq] = useState<number[]>([]);
   const [placementStep, setPlacementStep] = useState<number>(0);
   const [chosenShape, setChosenShape] = useState<PieceShape>('square');
@@ -124,12 +181,122 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
   const [lastBrokenWallKey, setLastBrokenWallKey] = useState<string | null>(null);
   const [lastPlacedWallKey, setLastPlacedWallKey] = useState<string | null>(null);
 
-  const [timeLeft, setTimeLeft] = useState<number>(TURN_SECONDS);
+  const [timeLeft, setTimeLeft] = useState<number>(turnLimitSeconds);
   const [turnCount, setTurnCount] = useState<number>(1);
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
   const [endReason, setEndReason] = useState<string>('');
+  const [isRematching, setIsRematching] = useState<boolean>(false);
 
   const timeoutGuardRef = useRef<boolean>(false);
+  const initializedRoundRef = useRef<number | null>(null);
+
+  // Host initializes online WallBaduk match state in RTDB
+  useEffect(() => {
+    if (!isOnline || !onlineRoom || !isHost) return;
+    if (onlineWB && onlineWB.roundKey === matchNumber) return;
+    if (initializedRoundRef.current === matchNumber) return;
+
+    initializedRoundRef.current = matchNumber;
+    const baseSeq = getPlacementSequence(2);
+    const orderedSeq =
+      firstTurnRole === 'P2' ? baseSeq.map((id) => (id === 1 ? 2 : 1)) : baseSeq;
+
+    const initialState: OnlineWallBadukState = {
+      phase: 'PLACEMENT',
+      roundMode: 2,
+      placementSeq: orderedSeq,
+      placementStep: 0,
+      turnIndex: firstTurnRole === 'P2' ? 1 : 0,
+      subPhase: 'SELECT_OR_MOVE',
+      movedPieceId: null,
+      pieces: getInitialRound2Pieces(),
+      walls: {},
+      lastBrokenWallKey: null,
+      lastPlacedWallKey: null,
+      turnCount: 1,
+      statusNotice: null,
+      endReason: '',
+      roundKey: matchNumber,
+    };
+
+    void fbSet(getRoomGameStateRef(onlineRoom.roomCode, 'wallBaduk'), initialState);
+  }, [isOnline, onlineRoom, isHost, onlineWB, matchNumber, firstTurnRole]);
+
+  const onlinePlayers = useMemo<PlayerState[]>(() => {
+    if (!isOnline || !onlineRoom) return [];
+    return [
+      {
+        id: 1,
+        name: onlineRoom.players?.P1?.nickname ?? '플레이어 1',
+        isAI: false,
+        colorKey: 'sky',
+        wallBreaksLeft: 0,
+      },
+      {
+        id: 2,
+        name: onlineRoom.players?.P2?.nickname ?? '플레이어 2',
+        isAI: false,
+        colorKey: 'rose',
+        wallBreaksLeft: 0,
+      },
+    ];
+  }, [isOnline, onlineRoom]);
+
+  const onlineWallsMap = useMemo(
+    () => (isOnline ? wallsRecordToMap(onlineWB?.walls) : null),
+    [isOnline, onlineWB?.walls],
+  );
+
+  // Unified effective state (Online RTDB vs Local)
+  const effectivePhase: WallBadukPhase = isOnline
+    ? (onlineWB?.phase ?? 'PLACEMENT')
+    : phase;
+  const effectiveRoundMode: RoundMode = isOnline ? 2 : roundMode;
+  const effectivePlayers = isOnline ? onlinePlayers : players;
+  const effectivePieces = useMemo(
+    () => (isOnline ? (onlineWB?.pieces ?? []) : pieces),
+    [isOnline, onlineWB?.pieces, pieces],
+  );
+  const effectiveWalls = isOnline ? (onlineWallsMap ?? walls) : walls;
+  const effectivePlacementSeq = useMemo(
+    () => (isOnline ? (onlineWB?.placementSeq ?? [1, 2, 2, 1]) : placementSeq),
+    [isOnline, onlineWB?.placementSeq, placementSeq],
+  );
+  const effectivePlacementStep = isOnline
+    ? (onlineWB?.placementStep ?? 0)
+    : placementStep;
+  const effectiveTurnIndex = isOnline ? (onlineWB?.turnIndex ?? 0) : turnIndex;
+  const effectiveSubPhase: TurnSubPhase = isOnline
+    ? (onlineWB?.subPhase ?? 'SELECT_OR_MOVE')
+    : subPhase;
+  const effectiveMovedPieceId = isOnline
+    ? (onlineWB?.movedPieceId ?? null)
+    : movedPieceId;
+  const effectiveLastBrokenWallKey = isOnline
+    ? (onlineWB?.lastBrokenWallKey ?? null)
+    : lastBrokenWallKey;
+  const effectiveLastPlacedWallKey = isOnline
+    ? (onlineWB?.lastPlacedWallKey ?? null)
+    : lastPlacedWallKey;
+  const effectiveTurnCount = isOnline ? (onlineWB?.turnCount ?? 1) : turnCount;
+  const effectiveStatusNotice = isOnline
+    ? (onlineWB?.statusNotice ?? null)
+    : statusNotice;
+  const effectiveEndReason = isOnline ? (onlineWB?.endReason ?? '') : endReason;
+
+  // Reset shot-clock and selection whenever turn or sub-phase advances
+  const turnSyncToken = isOnline
+    ? `${onlineWB?.roundKey ?? 0}:${effectivePhase}:${effectivePlacementStep}:${effectiveTurnIndex}:${effectiveSubPhase}:${effectiveTurnCount}`
+    : null;
+
+  useEffect(() => {
+    if (!isOnline || !turnSyncToken) return;
+    setTimeLeft(ONLINE_TURN_SECONDS);
+    timeoutGuardRef.current = false;
+    if (effectiveSubPhase !== 'PLACE_WALL') {
+      setSelectedPieceId(null);
+    }
+  }, [isOnline, turnSyncToken, effectiveSubPhase]);
 
   const handleRoundModeChange = (nextMode: RoundMode) => {
     setRoundMode(nextMode);
@@ -185,7 +352,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
 
     setPlayers(initialPlayers);
     setPieces(initialPieces);
-    setWalls(new Set());
+    setWalls(new Map());
     setPlacementSeq(seq);
     setPlacementStep(0);
     setChosenShape('square');
@@ -196,7 +363,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
     setWallBreakActive(false);
     setLastBrokenWallKey(null);
     setLastPlacedWallKey(null);
-    setTimeLeft(TURN_SECONDS);
+    setTimeLeft(LOCAL_TURN_SECONDS);
     setTurnCount(1);
     setStatusNotice(null);
     setEndReason('');
@@ -204,20 +371,28 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
     setPhase('PLACEMENT');
   };
 
-  const occupiedMap = useMemo(() => getOccupiedMap(pieces), [pieces]);
-  const boardAnalysis = useMemo(() => analyzeBoard(pieces, walls), [pieces, walls]);
+  const occupiedMap = useMemo(() => getOccupiedMap(effectivePieces), [effectivePieces]);
+  const boardAnalysis = useMemo(
+    () => analyzeBoard(effectivePieces, effectiveWalls),
+    [effectivePieces, effectiveWalls],
+  );
 
   const currentPlacementPlayerId =
-    phase === 'PLACEMENT' ? (placementSeq[placementStep] ?? 1) : null;
+    effectivePhase === 'PLACEMENT'
+      ? (effectivePlacementSeq[effectivePlacementStep] ?? 1)
+      : null;
   const currentPlayer =
-    phase === 'PLACEMENT'
-      ? players.find((p) => p.id === currentPlacementPlayerId) ?? players[0]
-      : players[turnIndex] ?? players[0];
+    effectivePhase === 'PLACEMENT'
+      ? effectivePlayers.find((p) => p.id === currentPlacementPlayerId) ?? effectivePlayers[0]
+      : effectivePlayers[effectiveTurnIndex] ?? effectivePlayers[0];
+
+  const activeOnlineRole: OnlineRole = currentPlayer?.id === 2 ? 'P2' : 'P1';
+  const isMyOnlineTurn = !isOnline || activeOnlineRole === myRole;
 
   const remainingShapesForPlacer = useMemo<PieceShape[]>(() => {
-    if (phase !== 'PLACEMENT' || !currentPlacementPlayerId) return [];
-    const owned = pieces.filter((p) => p.playerId === currentPlacementPlayerId);
-    if (roundMode === 2) {
+    if (effectivePhase !== 'PLACEMENT' || !currentPlacementPlayerId) return [];
+    const owned = effectivePieces.filter((p) => p.playerId === currentPlacementPlayerId);
+    if (effectiveRoundMode === 2) {
       return ['square'];
     }
     const hasSquare = owned.some((p) => p.shape === 'square');
@@ -226,7 +401,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
     if (!hasSquare) list.push('square');
     if (!hasCircle) list.push('circle');
     return list;
-  }, [phase, currentPlacementPlayerId, pieces, roundMode]);
+  }, [effectivePhase, currentPlacementPlayerId, effectivePieces, effectiveRoundMode]);
 
   useEffect(() => {
     if (
@@ -238,27 +413,38 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
   }, [remainingShapesForPlacer, chosenShape]);
 
   const selectedPiece = useMemo(
-    () => pieces.find((p) => p.id === selectedPieceId) ?? null,
-    [pieces, selectedPieceId],
+    () => effectivePieces.find((p) => p.id === selectedPieceId) ?? null,
+    [effectivePieces, selectedPieceId],
   );
 
   const movedPiece = useMemo(
-    () => pieces.find((p) => p.id === movedPieceId) ?? null,
-    [pieces, movedPieceId],
+    () => effectivePieces.find((p) => p.id === effectiveMovedPieceId) ?? null,
+    [effectivePieces, effectiveMovedPieceId],
   );
 
   const validMoveOptions = useMemo<MoveOption[]>(() => {
     if (
-      phase !== 'PLAYING' ||
-      subPhase !== 'SELECT_OR_MOVE' ||
+      effectivePhase !== 'PLAYING' ||
+      effectiveSubPhase !== 'SELECT_OR_MOVE' ||
       !selectedPiece ||
       !currentPlayer ||
-      selectedPiece.playerId !== currentPlayer.id
+      selectedPiece.playerId !== currentPlayer.id ||
+      (isOnline && !isMyOnlineTurn)
     ) {
       return [];
     }
-    return getValidMoves(selectedPiece, pieces, walls, wallBreakActive);
-  }, [phase, subPhase, selectedPiece, currentPlayer, pieces, walls, wallBreakActive]);
+    return getValidMoves(selectedPiece, effectivePieces, effectiveWalls, wallBreakActive);
+  }, [
+    effectivePhase,
+    effectiveSubPhase,
+    selectedPiece,
+    currentPlayer,
+    isOnline,
+    isMyOnlineTurn,
+    effectivePieces,
+    effectiveWalls,
+    wallBreakActive,
+  ]);
 
   const validMoveMap = useMemo(() => {
     const map = new Map<string, MoveOption>();
@@ -269,36 +455,80 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
   }, [validMoveOptions]);
 
   const emptyEdges = useMemo<EdgeOption[]>(() => {
-    if (phase !== 'PLAYING' || subPhase !== 'PLACE_WALL' || !movedPiece) {
+    if (
+      effectivePhase !== 'PLAYING' ||
+      effectiveSubPhase !== 'PLACE_WALL' ||
+      !movedPiece ||
+      (isOnline && !isMyOnlineTurn)
+    ) {
       return [];
     }
-    return getEmptyEdgesForCell(movedPiece.r, movedPiece.c, walls);
-  }, [phase, subPhase, movedPiece, walls]);
+    return getEmptyEdgesForCell(movedPiece.r, movedPiece.c, effectiveWalls);
+  }, [
+    effectivePhase,
+    effectiveSubPhase,
+    movedPiece,
+    isOnline,
+    isMyOnlineTurn,
+    effectiveWalls,
+  ]);
 
   const finalScores = useMemo(() => {
-    if (phase !== 'RESULT') return [];
-    return calculateScores(players, pieces, boardAnalysis);
-  }, [phase, players, pieces, boardAnalysis]);
+    if (effectivePhase !== 'RESULT') return [];
+    return calculateScores(effectivePlayers, effectivePieces, boardAnalysis);
+  }, [effectivePhase, effectivePlayers, effectivePieces, boardAnalysis]);
+
+  // Record cumulative score once when online match reaches RESULT
+  useEffect(() => {
+    if (!isOnline || !onlineRoom || effectivePhase !== 'RESULT') return;
+    const winners = finalScores.filter((s) => s.isWinner);
+    if (winners.length === 1) {
+      const winnerRole: OnlineRole = winners[0].playerId === 2 ? 'P2' : 'P1';
+      void recordMatchWinnerScore(
+        onlineRoom.roomCode,
+        winnerRole,
+        `WALLBADUK_GAME_${matchNumber}`,
+      );
+    }
+  }, [isOnline, onlineRoom, effectivePhase, finalScores, matchNumber]);
 
   // Complete a turn after walls and pieces are finalized
   const finalizeTurnAndAdvance = useCallback(
     (
       nextPieces: Piece[],
-      nextWalls: Set<string>,
+      nextWalls: Map<string, number>,
       nextPlayers: PlayerState[],
       curTurnIdx: number,
       notice?: string,
+      brokenKeyOverride?: string | null,
+      placedKeyOverride?: string | null,
     ) => {
       const analysis = analyzeBoard(nextPieces, nextWalls);
       if (analysis.isFullySeparated) {
         soundEngine.playVictory();
+        const reason = '모든 플레이어의 영역이 벽으로 완전히 분리되었습니다.';
+        setSelectedPieceId(null);
+        setWallBreakActive(false);
+
+        if (isOnline && onlineRoom) {
+          void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wallBaduk'), {
+            phase: 'RESULT',
+            pieces: nextPieces,
+            walls: wallsMapToRecord(nextWalls),
+            movedPieceId: null,
+            lastBrokenWallKey: brokenKeyOverride !== undefined ? brokenKeyOverride : effectiveLastBrokenWallKey,
+            lastPlacedWallKey: placedKeyOverride !== undefined ? placedKeyOverride : effectiveLastPlacedWallKey,
+            statusNotice: notice ?? null,
+            endReason: reason,
+          });
+          return;
+        }
+
         setPieces(nextPieces);
         setWalls(nextWalls);
         setPlayers(nextPlayers);
-        setSelectedPieceId(null);
         setMovedPieceId(null);
-        setWallBreakActive(false);
-        setEndReason('모든 플레이어의 영역이 벽으로 완전히 분리되었습니다.');
+        setEndReason(reason);
         setPhase('RESULT');
         return;
       }
@@ -306,7 +536,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
       // Find next player with at least one legal move
       const count = nextPlayers.length;
       let chosenNextIdx = -1;
-      let skippedNames: string[] = [];
+      const skippedNames: string[] = [];
 
       for (let offset = 1; offset <= count; offset += 1) {
         const candidateIdx = (curTurnIdx + offset) % count;
@@ -320,14 +550,53 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
 
       if (chosenNextIdx === -1) {
         soundEngine.playVictory();
+        const reason = '더 이상 이동할 수 있는 말이 없어 게임을 종료합니다.';
+        setSelectedPieceId(null);
+        setWallBreakActive(false);
+
+        if (isOnline && onlineRoom) {
+          void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wallBaduk'), {
+            phase: 'RESULT',
+            pieces: nextPieces,
+            walls: wallsMapToRecord(nextWalls),
+            movedPieceId: null,
+            lastBrokenWallKey: brokenKeyOverride !== undefined ? brokenKeyOverride : effectiveLastBrokenWallKey,
+            lastPlacedWallKey: placedKeyOverride !== undefined ? placedKeyOverride : effectiveLastPlacedWallKey,
+            statusNotice: notice ?? null,
+            endReason: reason,
+          });
+          return;
+        }
+
         setPieces(nextPieces);
         setWalls(nextWalls);
         setPlayers(nextPlayers);
-        setSelectedPieceId(null);
         setMovedPieceId(null);
-        setWallBreakActive(false);
-        setEndReason('더 이상 이동할 수 있는 말이 없어 게임을 종료합니다.');
+        setEndReason(reason);
         setPhase('RESULT');
+        return;
+      }
+
+      const resolvedNotice =
+        skippedNames.length > 0
+          ? `${skippedNames.join(', ')} 님은 이동 가능한 칸이 없어 턴을 건너뜁니다.`
+          : (notice ?? null);
+
+      setSelectedPieceId(null);
+      setWallBreakActive(false);
+
+      if (isOnline && onlineRoom) {
+        void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wallBaduk'), {
+          pieces: nextPieces,
+          walls: wallsMapToRecord(nextWalls),
+          turnIndex: chosenNextIdx,
+          subPhase: 'SELECT_OR_MOVE',
+          movedPieceId: null,
+          lastBrokenWallKey: brokenKeyOverride !== undefined ? brokenKeyOverride : effectiveLastBrokenWallKey,
+          lastPlacedWallKey: placedKeyOverride !== undefined ? placedKeyOverride : effectiveLastPlacedWallKey,
+          turnCount: effectiveTurnCount + 1,
+          statusNotice: resolvedNotice,
+        });
         return;
       }
 
@@ -336,85 +605,127 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
       setPlayers(nextPlayers);
       setTurnIndex(chosenNextIdx);
       setSubPhase('SELECT_OR_MOVE');
-      setSelectedPieceId(null);
       setMovedPieceId(null);
-      setWallBreakActive(false);
-      setTimeLeft(TURN_SECONDS);
+      setTimeLeft(LOCAL_TURN_SECONDS);
       setTurnCount((prev) => prev + 1);
       timeoutGuardRef.current = false;
-
-      if (skippedNames.length > 0) {
-        setStatusNotice(
-          `${skippedNames.join(', ')} 님은 이동 가능한 칸이 없어 턴을 건너뜁니다.`,
-        );
-      } else {
-        setStatusNotice(notice ?? null);
-      }
+      setStatusNotice(resolvedNotice);
     },
-    [],
+    [
+      isOnline,
+      onlineRoom,
+      effectiveLastBrokenWallKey,
+      effectiveLastPlacedWallKey,
+      effectiveTurnCount,
+    ],
   );
 
   // Placement action
   const executePlacePiece = useCallback(
     (r: number, c: number, shapeToPlace: PieceShape) => {
-      if (phase !== 'PLACEMENT' || !currentPlayer) return;
+      if (effectivePhase !== 'PLACEMENT' || !currentPlayer || isPaused) return;
+      if (isOnline && !isMyOnlineTurn) return;
       if (occupiedMap.has(`${r},${c}`)) return;
 
       const newPiece: Piece = {
-        id: `p${currentPlayer.id}-${shapeToPlace}-${placementStep}`,
+        id: `p${currentPlayer.id}-${shapeToPlace}-${effectivePlacementStep}`,
         playerId: currentPlayer.id,
         shape: shapeToPlace,
         r,
         c,
       };
 
-      const nextPieces = [...pieces, newPiece];
+      const nextPieces = [...effectivePieces, newPiece];
       soundEngine.playSelect();
 
-      if (placementStep + 1 < placementSeq.length) {
+      if (effectivePlacementStep + 1 < effectivePlacementSeq.length) {
+        if (isOnline && onlineRoom) {
+          void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wallBaduk'), {
+            pieces: nextPieces,
+            placementStep: effectivePlacementStep + 1,
+            statusNotice: null,
+          });
+          return;
+        }
+
         setPieces(nextPieces);
         setPlacementStep((prev) => prev + 1);
-        setTimeLeft(TURN_SECONDS);
+        setTimeLeft(LOCAL_TURN_SECONDS);
         timeoutGuardRef.current = false;
         setStatusNotice(null);
       } else {
-        // Placement finished -> start Turn 1 with Player 1
+        const startIdx = isOnline && firstTurnRole === 'P2' ? 1 : 0;
+        const firstName =
+          effectivePlayers[startIdx]?.name ?? `${startIdx + 1}번 플레이어`;
+        const notice = `말 배치가 완료되었습니다. ${firstName}부터 이동과 벽 설치를 시작하세요.`;
+
+        if (isOnline && onlineRoom) {
+          void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wallBaduk'), {
+            phase: 'PLAYING',
+            pieces: nextPieces,
+            turnIndex: startIdx,
+            subPhase: 'SELECT_OR_MOVE',
+            movedPieceId: null,
+            turnCount: 1,
+            statusNotice: notice,
+          });
+          return;
+        }
+
         setPieces(nextPieces);
         setTurnIndex(0);
         setSubPhase('SELECT_OR_MOVE');
         setSelectedPieceId(null);
         setMovedPieceId(null);
         setWallBreakActive(false);
-        setTimeLeft(TURN_SECONDS);
+        setTimeLeft(LOCAL_TURN_SECONDS);
         setTurnCount(1);
         timeoutGuardRef.current = false;
-        setStatusNotice('말 배치가 완료되었습니다. 1번 플레이어부터 이동과 벽 설치를 시작하세요.');
+        setStatusNotice(notice);
         setPhase('PLAYING');
       }
     },
-    [phase, currentPlayer, occupiedMap, placementStep, pieces, placementSeq.length],
+    [
+      effectivePhase,
+      currentPlayer,
+      isPaused,
+      isOnline,
+      isMyOnlineTurn,
+      occupiedMap,
+      effectivePlacementStep,
+      effectivePieces,
+      effectivePlacementSeq.length,
+      onlineRoom,
+      firstTurnRole,
+      effectivePlayers,
+    ],
   );
 
   // Move piece action
   const executeMovePiece = useCallback(
     (piece: Piece, move: MoveOption, autoNotice?: string) => {
-      if (!currentPlayer) return;
+      if (!currentPlayer || isPaused) return;
+      if (isOnline && !isMyOnlineTurn) return;
 
-      const nextPieces = pieces.map((p) =>
+      const nextPieces = effectivePieces.map((p) =>
         p.id === piece.id ? { ...p, r: move.r, c: move.c } : p,
       );
-      const nextWalls = new Set(walls);
-      let nextPlayers = players;
+      const nextWalls = new Map(effectiveWalls);
+      let nextPlayers = effectivePlayers;
+      let brokenKey: string | null = null;
 
       if (move.brokenWallKey) {
         nextWalls.delete(move.brokenWallKey);
-        setLastBrokenWallKey(move.brokenWallKey);
-        nextPlayers = players.map((p) =>
+        brokenKey = move.brokenWallKey;
+        if (!isOnline) {
+          setLastBrokenWallKey(move.brokenWallKey);
+        }
+        nextPlayers = effectivePlayers.map((p) =>
           p.id === currentPlayer.id
             ? { ...p, wallBreaksLeft: Math.max(0, p.wallBreaksLeft - 1) }
             : p,
         );
-      } else {
+      } else if (!isOnline) {
         setLastBrokenWallKey(null);
       }
 
@@ -426,48 +737,105 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
           nextPieces,
           nextWalls,
           nextPlayers,
-          turnIndex,
+          effectiveTurnIndex,
           autoNotice ?? '도착한 칸의 4면이 모두 막혀 있어 벽 설치 없이 다음 턴으로 넘어갑니다.',
+          brokenKey,
         );
+        return;
+      }
+
+      setSelectedPieceId(piece.id);
+      setWallBreakActive(false);
+
+      if (isOnline && onlineRoom) {
+        void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wallBaduk'), {
+          pieces: nextPieces,
+          walls: wallsMapToRecord(nextWalls),
+          movedPieceId: piece.id,
+          subPhase: 'PLACE_WALL',
+          lastBrokenWallKey: brokenKey,
+          statusNotice: autoNotice ?? null,
+        });
         return;
       }
 
       setPieces(nextPieces);
       setWalls(nextWalls);
       setPlayers(nextPlayers);
-      setSelectedPieceId(piece.id);
       setMovedPieceId(piece.id);
-      setWallBreakActive(false);
       setSubPhase('PLACE_WALL');
       setStatusNotice(autoNotice ?? null);
     },
-    [currentPlayer, pieces, walls, players, turnIndex, finalizeTurnAndAdvance],
+    [
+      currentPlayer,
+      isPaused,
+      isOnline,
+      isMyOnlineTurn,
+      effectivePieces,
+      effectiveWalls,
+      effectivePlayers,
+      effectiveTurnIndex,
+      finalizeTurnAndAdvance,
+      onlineRoom,
+    ],
   );
 
   // Place wall action
   const executePlaceWall = useCallback(
     (wallKey: string, autoNotice?: string) => {
-      if (phase !== 'PLAYING' || subPhase !== 'PLACE_WALL') return;
-      const nextWalls = new Set(walls);
-      nextWalls.add(wallKey);
-      setLastPlacedWallKey(wallKey);
+      if (
+        effectivePhase !== 'PLAYING' ||
+        effectiveSubPhase !== 'PLACE_WALL' ||
+        !currentPlayer ||
+        isPaused
+      ) {
+        return;
+      }
+      if (isOnline && !isMyOnlineTurn) return;
+
+      const nextWalls = new Map(effectiveWalls);
+      nextWalls.set(wallKey, currentPlayer.id);
+      if (!isOnline) {
+        setLastPlacedWallKey(wallKey);
+      }
       soundEngine.playHintResult(85);
-      finalizeTurnAndAdvance(pieces, nextWalls, players, turnIndex, autoNotice);
+      finalizeTurnAndAdvance(
+        effectivePieces,
+        nextWalls,
+        effectivePlayers,
+        effectiveTurnIndex,
+        autoNotice,
+        undefined,
+        wallKey,
+      );
     },
-    [phase, subPhase, walls, pieces, players, turnIndex, finalizeTurnAndAdvance],
+    [
+      effectivePhase,
+      effectiveSubPhase,
+      currentPlayer,
+      isPaused,
+      isOnline,
+      isMyOnlineTurn,
+      effectiveWalls,
+      effectivePieces,
+      effectivePlayers,
+      effectiveTurnIndex,
+      finalizeTurnAndAdvance,
+    ],
   );
 
   // Handle cell click
   const handleCellClick = (r: number, c: number) => {
-    if (!currentPlayer || currentPlayer.isAI) return;
+    if (!currentPlayer || currentPlayer.isAI || isPaused) return;
+    if (isOnline && !isMyOnlineTurn) return;
 
-    if (phase === 'PLACEMENT') {
+    if (effectivePhase === 'PLACEMENT') {
       if (occupiedMap.has(`${r},${c}`)) return;
       executePlacePiece(r, c, chosenShape);
       return;
     }
 
-    if (phase === 'PLAYING' && subPhase === 'SELECT_OR_MOVE') {
+    if (effectivePhase === 'PLAYING' && effectiveSubPhase === 'SELECT_OR_MOVE') {
       const clickedOccupant = occupiedMap.get(`${r},${c}`);
 
       // Clicking own piece selects/deselects it
@@ -489,25 +857,35 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
     }
   };
 
-  // Auto-play on 90s timeout
+  // Auto-play on timeout (90s local / 45s online)
   const handleTurnTimeout = useCallback(() => {
-    if (!currentPlayer) return;
+    if (!currentPlayer || isPaused) return;
+    if (isOnline && !isMyOnlineTurn) return;
 
-    if (phase === 'PLACEMENT') {
+    if (effectivePhase === 'PLACEMENT') {
       const choice = chooseAIPlacement(
         currentPlayer.id,
         remainingShapesForPlacer,
-        pieces,
-        walls,
+        effectivePieces,
+        effectiveWalls,
       );
       executePlacePiece(choice.r, choice.c, choice.shape);
       return;
     }
 
-    if (phase === 'PLAYING' && subPhase === 'PLACE_WALL' && movedPiece) {
-      const edges = getEmptyEdgesForCell(movedPiece.r, movedPiece.c, walls);
+    if (
+      effectivePhase === 'PLAYING' &&
+      effectiveSubPhase === 'PLACE_WALL' &&
+      movedPiece
+    ) {
+      const edges = getEmptyEdgesForCell(movedPiece.r, movedPiece.c, effectiveWalls);
       if (edges.length === 0) {
-        finalizeTurnAndAdvance(pieces, walls, players, turnIndex);
+        finalizeTurnAndAdvance(
+          effectivePieces,
+          effectiveWalls,
+          effectivePlayers,
+          effectiveTurnIndex,
+        );
       } else {
         const randomEdge = edges[Math.floor(Math.random() * edges.length)];
         executePlaceWall(
@@ -518,17 +896,16 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
       return;
     }
 
-    if (phase === 'PLAYING' && subPhase === 'SELECT_OR_MOVE') {
-      const owned = pieces.filter((p) => p.playerId === currentPlayer.id);
+    if (effectivePhase === 'PLAYING' && effectiveSubPhase === 'SELECT_OR_MOVE') {
+      const owned = effectivePieces.filter((p) => p.playerId === currentPlayer.id);
       let candidatePiece: Piece | null = null;
       let candidateMoves: MoveOption[] = [];
 
-      // First try currently selected piece if it has moves
       if (selectedPiece && selectedPiece.playerId === currentPlayer.id) {
-        const normal = getValidMoves(selectedPiece, pieces, walls, false);
+        const normal = getValidMoves(selectedPiece, effectivePieces, effectiveWalls, false);
         const brk =
           currentPlayer.wallBreaksLeft > 0
-            ? getValidMoves(selectedPiece, pieces, walls, true)
+            ? getValidMoves(selectedPiece, effectivePieces, effectiveWalls, true)
             : [];
         if (normal.length > 0) {
           candidatePiece = selectedPiece;
@@ -539,11 +916,10 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
         }
       }
 
-      // Otherwise pick any owned piece with valid moves
       if (!candidatePiece) {
         const shuffledOwned = [...owned].sort(() => Math.random() - 0.5);
         for (const p of shuffledOwned) {
-          const normal = getValidMoves(p, pieces, walls, false);
+          const normal = getValidMoves(p, effectivePieces, effectiveWalls, false);
           if (normal.length > 0) {
             candidatePiece = p;
             candidateMoves = normal;
@@ -552,7 +928,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
         }
         if (!candidatePiece && currentPlayer.wallBreaksLeft > 0) {
           for (const p of shuffledOwned) {
-            const brk = getValidMoves(p, pieces, walls, true);
+            const brk = getValidMoves(p, effectivePieces, effectiveWalls, true);
             if (brk.length > 0) {
               candidatePiece = p;
               candidateMoves = brk;
@@ -564,10 +940,10 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
 
       if (!candidatePiece || candidateMoves.length === 0) {
         finalizeTurnAndAdvance(
-          pieces,
-          walls,
-          players,
-          turnIndex,
+          effectivePieces,
+          effectiveWalls,
+          effectivePlayers,
+          effectiveTurnIndex,
           `${currentPlayer.name} 님이 이동할 수 없어 턴이 넘어갑니다.`,
         );
         return;
@@ -575,18 +951,21 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
 
       const randomMove =
         candidateMoves[Math.floor(Math.random() * candidateMoves.length)];
-      const nextPieces = pieces.map((p) =>
+      const nextPieces = effectivePieces.map((p) =>
         p.id === candidatePiece!.id
           ? { ...p, r: randomMove.r, c: randomMove.c }
           : p,
       );
-      const nextWalls = new Set(walls);
-      let nextPlayers = players;
+      const nextWalls = new Map(effectiveWalls);
+      let nextPlayers = effectivePlayers;
+      let brokenKey: string | null = null;
+      let placedKey: string | null = null;
 
       if (randomMove.brokenWallKey) {
         nextWalls.delete(randomMove.brokenWallKey);
-        setLastBrokenWallKey(randomMove.brokenWallKey);
-        nextPlayers = players.map((p) =>
+        brokenKey = randomMove.brokenWallKey;
+        if (!isOnline) setLastBrokenWallKey(brokenKey);
+        nextPlayers = effectivePlayers.map((p) =>
           p.id === currentPlayer.id
             ? { ...p, wallBreaksLeft: Math.max(0, p.wallBreaksLeft - 1) }
             : p,
@@ -596,8 +975,9 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
       const edges = getEmptyEdgesForCell(randomMove.r, randomMove.c, nextWalls);
       if (edges.length > 0) {
         const randomEdge = edges[Math.floor(Math.random() * edges.length)];
-        nextWalls.add(randomEdge.wallKey);
-        setLastPlacedWallKey(randomEdge.wallKey);
+        nextWalls.set(randomEdge.wallKey, currentPlayer.id);
+        placedKey = randomEdge.wallKey;
+        if (!isOnline) setLastPlacedWallKey(placedKey);
       }
 
       soundEngine.playWrongGuess();
@@ -605,34 +985,42 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
         nextPieces,
         nextWalls,
         nextPlayers,
-        turnIndex,
-        `${currentPlayer.name} 님의 제한 시간(90초)이 종료되어 자동 이동 및 벽 설치가 진행되었습니다.`,
+        effectiveTurnIndex,
+        `${currentPlayer.name} 님의 제한 시간(${turnLimitSeconds}초)이 종료되어 자동 이동 및 벽 설치가 진행되었습니다.`,
+        brokenKey,
+        placedKey,
       );
     }
   }, [
     currentPlayer,
-    phase,
-    subPhase,
+    isPaused,
+    isOnline,
+    isMyOnlineTurn,
+    effectivePhase,
+    effectiveSubPhase,
     remainingShapesForPlacer,
-    pieces,
-    walls,
-    players,
-    turnIndex,
+    effectivePieces,
+    effectiveWalls,
+    effectivePlayers,
+    effectiveTurnIndex,
     movedPiece,
     selectedPiece,
+    turnLimitSeconds,
     executePlacePiece,
     executePlaceWall,
     finalizeTurnAndAdvance,
   ]);
 
-  // 90s Countdown timer
+  // Countdown timer (90s local / 45s online shot clock, freezes on Pause)
   useEffect(() => {
-    if (phase !== 'PLACEMENT' && phase !== 'PLAYING') return;
+    if (effectivePhase !== 'PLACEMENT' && effectivePhase !== 'PLAYING') return;
+    if (isPaused) return;
+    if (isOnline && !onlineWB) return;
 
     const timer = window.setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          if (!timeoutGuardRef.current) {
+          if (!timeoutGuardRef.current && (!isOnline || isMyOnlineTurn)) {
             timeoutGuardRef.current = true;
             window.setTimeout(() => handleTurnTimeout(), 0);
           }
@@ -643,10 +1031,11 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [phase, handleTurnTimeout]);
+  }, [effectivePhase, isPaused, isOnline, onlineWB, isMyOnlineTurn, handleTurnTimeout]);
 
-  // AI Bot Execution
+  // AI Bot Execution (Local mode only, freezes on Pause)
   useEffect(() => {
+    if (isOnline || isPaused) return;
     if (!currentPlayer || !currentPlayer.isAI) return;
     if (phase !== 'PLACEMENT' && phase !== 'PLAYING') return;
 
@@ -682,7 +1071,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
         const nextPieces = pieces.map((p) =>
           p.id === piece.id ? { ...p, r: action.move.r, c: action.move.c } : p,
         );
-        const nextWalls = new Set(walls);
+        const nextWalls = new Map(walls);
         let nextPlayers = players;
 
         if (action.move.brokenWallKey) {
@@ -698,7 +1087,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
         }
 
         if (action.wallKey) {
-          nextWalls.add(action.wallKey);
+          nextWalls.set(action.wallKey, currentPlayer.id);
           setLastPlacedWallKey(action.wallKey);
         }
 
@@ -717,6 +1106,8 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
 
     return () => window.clearTimeout(timer);
   }, [
+    isOnline,
+    isPaused,
     currentPlayer,
     phase,
     subPhase,
@@ -729,6 +1120,16 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
     finalizeTurnAndAdvance,
   ]);
 
+  const handleOnlineRematch = async () => {
+    if (!onlineRoom || !isHost || isRematching) return;
+    setIsRematching(true);
+    try {
+      await rematchSameGame(onlineRoom.roomCode, firstTurnRole);
+    } finally {
+      setIsRematching(false);
+    }
+  };
+
   const edgeByDir = useMemo(() => {
     const map = new Map<Direction, EdgeOption>();
     for (const e of emptyEdges) {
@@ -738,7 +1139,8 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
   }, [emptyEdges]);
 
   const renderPieceToken = (piece: Piece, isSelected: boolean, isMoved: boolean) => {
-    const style = PLAYER_STYLE[players.find((p) => p.id === piece.playerId)?.colorKey ?? 'sky'];
+    const style =
+      PLAYER_STYLE[effectivePlayers.find((p) => p.id === piece.playerId)?.colorKey ?? 'sky'];
     const playerLabel = `P${piece.playerId}`;
 
     if (piece.shape === 'square') {
@@ -766,12 +1168,30 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
     );
   };
 
+  if (isOnline && !onlineWB) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-400" aria-hidden="true" />
+        <p className="text-sm font-bold text-slate-100">
+          벽바둑 2 온라인 대국 보드를 준비하는 중입니다...
+        </p>
+      </div>
+    );
+  }
+
+  const showResultConfetti =
+    effectivePhase === 'RESULT' &&
+    (!isOnline ||
+      finalScores.some(
+        (s) => s.isWinner && (s.playerId === 1 ? 'P1' : 'P2') === myRole,
+      ));
+
   return (
     <>
-      {phase === 'RESULT' && <VictoryConfetti />}
+      {showResultConfetti && <VictoryConfetti />}
 
-      {/* SETUP SCREEN */}
-      {phase === 'SETUP' && (
+      {/* SETUP SCREEN (Local only) */}
+      {!isOnline && phase === 'SETUP' && (
         <div className="h-full overflow-y-auto">
           <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
             <button
@@ -933,23 +1353,29 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
       )}
 
       {/* ACTIVE GAME OR RESULT — One-Screen Fold 8 Layout */}
-      {(phase === 'PLACEMENT' || phase === 'PLAYING' || phase === 'RESULT') && (
+      {(isOnline ||
+        effectivePhase === 'PLACEMENT' ||
+        effectivePhase === 'PLAYING' ||
+        effectivePhase === 'RESULT') && (
         <GameBoardLayout
+          onlineReactionBar={onlineReactionBar}
           topBar={
             <div className="rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4 sm:py-2.5">
               <div className="flex items-center justify-between gap-2">
                 {/* Left: Back + Turn Info */}
                 <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setPhase('SETUP')}
-                    className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-slate-800 bg-[#0B0F17] px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span className="hidden sm:inline">설정</span>
-                  </button>
+                  {!isOnline && (
+                    <button
+                      type="button"
+                      onClick={() => setPhase('SETUP')}
+                      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-slate-800 bg-[#0B0F17] px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span className="hidden sm:inline">설정</span>
+                    </button>
+                  )}
 
-                  {phase !== 'RESULT' && currentPlayer ? (
+                  {effectivePhase !== 'RESULT' && currentPlayer ? (
                     <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                       <span
                         className={`inline-flex h-5 shrink-0 items-center rounded px-1.5 font-mono text-[11px] font-bold ${
@@ -961,39 +1387,54 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                       <span className="truncate text-xs font-bold text-slate-100 sm:text-sm">
                         {currentPlayer.name}
                       </span>
+                      {isOnline && (
+                        <span
+                          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                            isMyOnlineTurn
+                              ? 'bg-emerald-500/20 text-emerald-300'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}
+                        >
+                          {isMyOnlineTurn ? '내 차례' : '대기'}
+                        </span>
+                      )}
                       <span className="hidden text-xs text-slate-400 md:inline">
                         ·{' '}
                         {currentPlayer.isAI
                           ? 'AI 생각 중...'
-                          : phase === 'PLACEMENT'
-                            ? `빈칸 배치 (${placementStep + 1}/${placementSeq.length})`
-                            : subPhase === 'SELECT_OR_MOVE'
-                              ? selectedPiece
-                                ? '이동할 칸 선택'
-                                : '내 말 선택'
-                              : '도착 칸 경계에 벽 설치'}
+                          : isOnline && !isMyOnlineTurn
+                            ? '상대방의 행동을 기다리는 중...'
+                            : effectivePhase === 'PLACEMENT'
+                              ? `빈칸 배치 (${effectivePlacementStep + 1}/${effectivePlacementSeq.length})`
+                              : effectiveSubPhase === 'SELECT_OR_MOVE'
+                                ? selectedPiece
+                                  ? '이동할 칸 선택'
+                                  : '내 말 선택'
+                                : '도착 칸 경계에 벽 설치'}
                       </span>
                       <span className="shrink-0 text-[11px] text-slate-400 md:hidden whitespace-nowrap">
                         {currentPlayer.isAI
                           ? 'AI 중'
-                          : phase === 'PLACEMENT'
-                            ? `배치 ${placementStep + 1}/${placementSeq.length}`
-                            : subPhase === 'SELECT_OR_MOVE'
-                              ? selectedPiece
-                                ? '칸 선택'
-                                : '말 선택'
-                              : '벽 설치'}
+                          : isOnline && !isMyOnlineTurn
+                            ? '상대 차례'
+                            : effectivePhase === 'PLACEMENT'
+                              ? `배치 ${effectivePlacementStep + 1}/${effectivePlacementSeq.length}`
+                              : effectiveSubPhase === 'SELECT_OR_MOVE'
+                                ? selectedPiece
+                                  ? '칸 선택'
+                                  : '말 선택'
+                                : '벽 설치'}
                       </span>
                     </div>
                   ) : (
                     <div className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-emerald-400 sm:text-sm">
                       <Trophy className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{endReason}</span>
+                      <span className="truncate">{effectiveEndReason}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Right: Separation Status + 90s Timer */}
+                {/* Right: Separation Status + Countdown Timer */}
                 <div className="flex shrink-0 items-center gap-2">
                   <span
                     className={`hidden text-xs sm:inline whitespace-nowrap ${
@@ -1004,10 +1445,10 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                   >
                     {boardAnalysis.isFullySeparated
                       ? '완전 분리'
-                      : `${turnCount}턴 · 공유 ${boardAnalysis.sharedComponentsCount}`}
+                      : `${effectiveTurnCount}턴 · 공유 ${boardAnalysis.sharedComponentsCount}`}
                   </span>
 
-                  {phase !== 'RESULT' && (
+                  {effectivePhase !== 'RESULT' && (
                     <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-[#0B0F17] px-2.5 py-1">
                       <Clock
                         className={`h-3.5 w-3.5 ${
@@ -1037,16 +1478,26 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
             </div>
           }
           noticeBar={
-            statusNotice ? (
+            isOnline && effectivePhase !== 'RESULT' && !isMyOnlineTurn ? (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/75 px-3 py-1.5 text-xs font-semibold text-slate-200"
+              >
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-300 shrink-0" aria-hidden="true" />
+                <span className="truncate">
+                  상대방({currentPlayer?.name})의 행동을 기다리는 중...
+                </span>
+              </div>
+            ) : effectiveStatusNotice ? (
               <div
                 role="status"
                 className="truncate rounded-xl border border-sky-500/35 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-200"
               >
-                {statusNotice}
+                {effectiveStatusNotice}
               </div>
             ) : undefined
           }
-          mainStage={
+          boardArea={
             <SquareBoardBox maxPx={620}>
               <div className="h-full w-full rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:p-3">
                 {/* Outer Wall Border */}
@@ -1058,7 +1509,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                         const moveOpt = validMoveMap.get(`${r},${c}`);
                         const isSelected =
                           occupant && occupant.id === selectedPieceId;
-                        const isMoved = occupant && occupant.id === movedPieceId;
+                        const isMoved = occupant && occupant.id === effectiveMovedPieceId;
 
                         const compId = boardAnalysis.cellToComponent[r][c];
                         const comp = boardAnalysis.components[compId];
@@ -1067,14 +1518,14 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                             ? comp.playerIds[0]
                             : null;
                         const soleOwnerColor = soleOwnerId
-                          ? players.find((p) => p.id === soleOwnerId)?.colorKey
+                          ? effectivePlayers.find((p) => p.id === soleOwnerId)?.colorKey
                           : undefined;
 
                         let cellBg = 'bg-[#0F1522]';
-                        if (phase === 'RESULT' && soleOwnerColor) {
+                        if (effectivePhase === 'RESULT' && soleOwnerColor) {
                           cellBg = PLAYER_STYLE[soleOwnerColor].territoryBg;
                         } else if (
-                          phase === 'PLAYING' &&
+                          effectivePhase === 'PLAYING' &&
                           soleOwnerColor &&
                           boardAnalysis.isFullySeparated
                         ) {
@@ -1082,32 +1533,46 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                         }
 
                         const canPlaceHere =
-                          phase === 'PLACEMENT' &&
+                          effectivePhase === 'PLACEMENT' &&
                           !occupant &&
                           currentPlayer &&
-                          !currentPlayer.isAI;
+                          !currentPlayer.isAI &&
+                          !isPaused &&
+                          isMyOnlineTurn;
 
                         const canSelectHere =
-                          phase === 'PLAYING' &&
-                          subPhase === 'SELECT_OR_MOVE' &&
+                          effectivePhase === 'PLAYING' &&
+                          effectiveSubPhase === 'SELECT_OR_MOVE' &&
                           occupant &&
                           currentPlayer &&
                           !currentPlayer.isAI &&
+                          !isPaused &&
+                          isMyOnlineTurn &&
                           occupant.playerId === currentPlayer.id;
 
                         const canMoveHere =
-                          phase === 'PLAYING' &&
-                          subPhase === 'SELECT_OR_MOVE' &&
+                          effectivePhase === 'PLAYING' &&
+                          effectiveSubPhase === 'SELECT_OR_MOVE' &&
+                          !isPaused &&
+                          isMyOnlineTurn &&
                           Boolean(moveOpt);
 
                         const hWallKey = r < BOARD_SIZE - 1 ? `H:${r}:${c}` : null;
                         const vWallKey = c < BOARD_SIZE - 1 ? `V:${r}:${c}` : null;
-                        const hasBottomWall = hWallKey ? walls.has(hWallKey) : false;
-                        const hasRightWall = vWallKey ? walls.has(vWallKey) : false;
+                        const bottomWallOwner = hWallKey ? effectiveWalls.get(hWallKey) : undefined;
+                        const rightWallOwner = vWallKey ? effectiveWalls.get(vWallKey) : undefined;
+                        const bottomWallColor =
+                          bottomWallOwner !== undefined
+                            ? effectivePlayers.find((p) => p.id === bottomWallOwner)?.colorKey
+                            : undefined;
+                        const rightWallColor =
+                          rightWallOwner !== undefined
+                            ? effectivePlayers.find((p) => p.id === rightWallOwner)?.colorKey
+                            : undefined;
 
                         const isMovedCell =
-                          phase === 'PLAYING' &&
-                          subPhase === 'PLACE_WALL' &&
+                          effectivePhase === 'PLAYING' &&
+                          effectiveSubPhase === 'PLACE_WALL' &&
                           movedPiece?.r === r &&
                           movedPiece?.c === c;
 
@@ -1161,38 +1626,46 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                               ) : null}
                             </button>
 
-                            {/* Permanent Bottom Wall Seam */}
-                            {hasBottomWall && (
+                            {/* Permanent Bottom Wall Seam (Owner Piece Color + Glow) */}
+                            {bottomWallOwner !== undefined && (
                               <div
                                 aria-hidden="true"
-                                className={`pointer-events-none absolute -bottom-[2px] left-0 right-0 z-10 h-[4px] ${
-                                  lastPlacedWallKey === hWallKey
-                                    ? 'bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.7)]'
+                                className={`pointer-events-none absolute -bottom-[2.5px] left-[2px] right-[2px] z-10 h-[5px] rounded-full ring-1 ring-slate-950/75 ${
+                                  bottomWallColor
+                                    ? `${PLAYER_STYLE[bottomWallColor].wallBarBg} ${PLAYER_STYLE[bottomWallColor].wallGlow}`
                                     : 'bg-slate-200'
+                                } ${
+                                  effectiveLastPlacedWallKey === hWallKey
+                                    ? 'ring-2 ring-white/90'
+                                    : ''
                                 }`}
                               />
                             )}
 
-                            {/* Permanent Right Wall Seam */}
-                            {hasRightWall && (
+                            {/* Permanent Right Wall Seam (Owner Piece Color + Glow) */}
+                            {rightWallOwner !== undefined && (
                               <div
                                 aria-hidden="true"
-                                className={`pointer-events-none absolute bottom-0 right-[-2px] top-0 z-10 w-[4px] ${
-                                  lastPlacedWallKey === vWallKey
-                                    ? 'bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.7)]'
+                                className={`pointer-events-none absolute bottom-[2px] right-[-2.5px] top-[2px] z-10 w-[5px] rounded-full ring-1 ring-slate-950/75 ${
+                                  rightWallColor
+                                    ? `${PLAYER_STYLE[rightWallColor].wallBarBg} ${PLAYER_STYLE[rightWallColor].wallGlow}`
                                     : 'bg-slate-200'
+                                } ${
+                                  effectiveLastPlacedWallKey === vWallKey
+                                    ? 'ring-2 ring-white/90'
+                                    : ''
                                 }`}
                               />
                             )}
 
                             {/* Recently broken wall subtle cue */}
-                            {lastBrokenWallKey &&
-                              (lastBrokenWallKey === hWallKey ||
-                                lastBrokenWallKey === vWallKey) && (
+                            {effectiveLastBrokenWallKey &&
+                              (effectiveLastBrokenWallKey === hWallKey ||
+                                effectiveLastBrokenWallKey === vWallKey) && (
                                 <div
                                   aria-hidden="true"
                                   className={
-                                    lastBrokenWallKey === hWallKey
+                                    effectiveLastBrokenWallKey === hWallKey
                                       ? 'pointer-events-none absolute -bottom-[1px] left-1 right-1 z-10 h-[2px] border-b-2 border-dashed border-rose-400/70'
                                       : 'pointer-events-none absolute bottom-1 right-[-1px] top-1 z-10 w-[2px] border-r-2 border-dashed border-rose-400/70'
                                   }
@@ -1249,16 +1722,16 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
               </div>
             </SquareBoardBox>
           }
-          controlPanel={
+          controlArea={
             <div className="space-y-2 sm:space-y-3">
               {/* Compact Player Strip */}
-              {phase !== 'RESULT' && (
+              {effectivePhase !== 'RESULT' && (
                 <div
                   className={`grid gap-1.5 ${
-                    players.length === 3 ? 'grid-cols-3 sm:grid-cols-1' : 'grid-cols-2 sm:grid-cols-1'
+                    effectivePlayers.length === 3 ? 'grid-cols-3 sm:grid-cols-1' : 'grid-cols-2 sm:grid-cols-1'
                   }`}
                 >
-                  {players.map((p) => {
+                  {effectivePlayers.map((p) => {
                     const style = PLAYER_STYLE[p.colorKey];
                     const isTurn = currentPlayer?.id === p.id;
                     return (
@@ -1281,7 +1754,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                           </span>
                         </div>
                         <span className="shrink-0 font-mono text-[11px] tabular-nums text-slate-400">
-                          {roundMode === 1 ? `부수기 ${p.wallBreaksLeft}` : '결승'}
+                          {effectiveRoundMode === 1 ? `부수기 ${p.wallBreaksLeft}` : '결승'}
                         </span>
                       </div>
                     );
@@ -1290,20 +1763,20 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
               )}
 
               {/* Placement Shape Picker */}
-              {phase === 'PLACEMENT' && currentPlayer && (
+              {effectivePhase === 'PLACEMENT' && currentPlayer && (
                 <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4">
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="text-xs font-bold text-slate-100 sm:text-sm">
-                      말 배치 ({placementStep + 1}/{placementSeq.length})
+                      말 배치 ({effectivePlacementStep + 1}/{effectivePlacementSeq.length})
                     </h2>
                     <div className="flex items-center gap-1 text-[10px]">
-                      {placementSeq.map((pid, idx) => (
+                      {effectivePlacementSeq.map((pid, idx) => (
                         <span
                           key={idx}
                           className={`rounded px-1.5 py-0.5 font-mono ${
-                            idx === placementStep
-                              ? `${PLAYER_STYLE[players.find((p) => p.id === pid)?.colorKey ?? 'sky'].bgSolid} font-bold`
-                              : idx < placementStep
+                            idx === effectivePlacementStep
+                              ? `${PLAYER_STYLE[effectivePlayers.find((p) => p.id === pid)?.colorKey ?? 'sky'].bgSolid} font-bold`
+                              : idx < effectivePlacementStep
                                 ? 'bg-slate-800 text-slate-500 line-through'
                                 : 'bg-slate-800/70 text-slate-400'
                           }`}
@@ -1314,32 +1787,40 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                     </div>
                   </div>
 
-                  {!currentPlayer.isAI && remainingShapesForPlacer.length > 0 && (
-                    <div className="mt-2.5 grid grid-cols-2 gap-2">
-                      {remainingShapesForPlacer.map((shape) => (
-                        <button
-                          key={shape}
-                          type="button"
-                          onClick={() => setChosenShape(shape)}
-                          className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
-                            chosenShape === shape
-                              ? 'border-sky-400 bg-sky-500/15 text-sky-300'
-                              : 'border-slate-700 bg-[#0B0F17] text-slate-300 hover:border-slate-600'
-                          }`}
-                        >
-                          <span>{shape === 'square' ? '■ 사각 말' : '● 원형 말'}</span>
-                        </button>
-                      ))}
-                    </div>
+                  {!currentPlayer.isAI &&
+                    isMyOnlineTurn &&
+                    remainingShapesForPlacer.length > 0 && (
+                      <div className="mt-2.5 grid grid-cols-2 gap-2">
+                        {remainingShapesForPlacer.map((shape) => (
+                          <button
+                            key={shape}
+                            type="button"
+                            onClick={() => setChosenShape(shape)}
+                            className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
+                              chosenShape === shape
+                                ? 'border-sky-400 bg-sky-500/15 text-sky-300'
+                                : 'border-slate-700 bg-[#0B0F17] text-slate-300 hover:border-slate-600'
+                            }`}
+                          >
+                            <span>{shape === 'square' ? '■ 사각 말' : '● 원형 말'}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                  {isOnline && !isMyOnlineTurn && (
+                    <p className="mt-2 text-xs text-slate-400">
+                      상대방이 말 위치를 선택하고 있습니다.
+                    </p>
                   )}
                 </div>
               )}
 
               {/* Playing Phase Controls & Directional Wall Buttons */}
-              {phase === 'PLAYING' && currentPlayer && (
+              {effectivePhase === 'PLAYING' && currentPlayer && (
                 <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4 space-y-2.5 sm:space-y-3.5">
                   {/* Directional Quick Wall Placement Buttons (during PLACE_WALL) */}
-                  {subPhase === 'PLACE_WALL' && emptyEdges.length > 0 && (
+                  {effectiveSubPhase === 'PLACE_WALL' && emptyEdges.length > 0 && isMyOnlineTurn && (
                     <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-2.5">
                       <p className="text-[11px] font-semibold text-emerald-300">
                         벽 설치 방향 선택 (보드 초록선 터치 가능)
@@ -1349,8 +1830,9 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                           <button
                             key={edge.wallKey}
                             type="button"
+                            disabled={isPaused}
                             onClick={() => executePlaceWall(edge.wallKey)}
-                            className="min-h-10 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-emerald-300 whitespace-nowrap"
+                            className="min-h-10 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:opacity-45 whitespace-nowrap"
                           >
                             {edge.label} 벽
                           </button>
@@ -1360,14 +1842,15 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                   )}
 
                   {/* Wall Break Skill (Round 1 only) */}
-                  {roundMode === 1 && (
+                  {effectiveRoundMode === 1 && (
                     <div>
                       <button
                         type="button"
                         disabled={
                           currentPlayer.isAI ||
-                          subPhase !== 'SELECT_OR_MOVE' ||
-                          currentPlayer.wallBreaksLeft <= 0
+                          effectiveSubPhase !== 'SELECT_OR_MOVE' ||
+                          currentPlayer.wallBreaksLeft <= 0 ||
+                          isPaused
                         }
                         onClick={() => setWallBreakActive((prev) => !prev)}
                         className={`flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 ${
@@ -1417,7 +1900,7 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
               )}
 
               {/* Result Scoreboard */}
-              {phase === 'RESULT' && (
+              {effectivePhase === 'RESULT' && (
                 <div className="rounded-xl border border-slate-800 bg-[#131926] p-3.5 sm:rounded-2xl sm:p-5">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
                     <Trophy className="h-4 w-4" aria-hidden="true" />
@@ -1474,23 +1957,58 @@ export function WallBadukGame({ onBackToLobby }: WallBadukGameProps) {
                     })}
                   </div>
 
-                  <div className="mt-3 flex gap-2 sm:mt-4">
-                    <button
-                      type="button"
-                      onClick={startGame}
-                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-amber-300 whitespace-nowrap sm:min-h-11"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>다시하기</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPhase('SETUP')}
-                      className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap sm:min-h-11"
-                    >
-                      설정 변경
-                    </button>
-                  </div>
+                  {isOnline ? (
+                    <div className="mt-3 space-y-2 sm:mt-4">
+                      <div className="flex flex-wrap gap-2">
+                        {isHost && (
+                          <button
+                            type="button"
+                            disabled={isRematching}
+                            onClick={() => void handleOnlineRematch()}
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-amber-300 disabled:opacity-60 whitespace-nowrap sm:min-h-11"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>
+                              {isRematching ? '준비 중...' : '같은 게임 바로 재대결'}
+                            </span>
+                          </button>
+                        )}
+                        {onReturnToWaitingRoom && (
+                          <button
+                            type="button"
+                            onClick={onReturnToWaitingRoom}
+                            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap sm:min-h-11"
+                          >
+                            <Home className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>대기실로 돌아가기</span>
+                          </button>
+                        )}
+                      </div>
+                      {!isHost && (
+                        <p className="text-[11px] text-slate-400">
+                          방장({onlineRoom?.players?.[hostRole]?.nickname ?? hostRole})이 재대결 또는 대기실 복귀를 선택할 수 있습니다.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 flex gap-2 sm:mt-4">
+                      <button
+                        type="button"
+                        onClick={startGame}
+                        className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-amber-300 whitespace-nowrap sm:min-h-11"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>다시하기</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPhase('SETUP')}
+                        className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap sm:min-h-11"
+                      >
+                        설정 변경
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -15,6 +15,7 @@ export interface HintEntry {
   word: string;
   similarity: number;
   rawCosine: number;
+  reason?: string;
   order: number;
   isExactMatch: boolean;
 }
@@ -51,16 +52,15 @@ export interface GiveUpResponse {
 export type SimilarityTier = 'high' | 'medium' | 'low';
 
 export function getSimilarityTier(similarity: number): SimilarityTier {
-  if (similarity >= 80) return 'high';
-  if (similarity >= 50) return 'medium';
+  if (similarity >= 70) return 'high';
+  if (similarity >= 45) return 'medium';
   return 'low';
 }
 
 export function getSimilarityLabel(similarity: number): string {
-  if (similarity >= 95) return '정답 근접';
-  if (similarity >= 80) return '매우 가까움';
-  if (similarity >= 65) return '꽤 가까움';
-  if (similarity >= 50) return '관련 있음';
-  if (similarity >= 25) return '약간 멈';
-  return '거리가 멈';
+  if (similarity >= 90) return '핵심 연관어';
+  if (similarity >= 70) return '밀접한 관련';
+  if (similarity >= 45) return '간접 연상';
+  if (similarity >= 20) return '약한 연결';
+  return '무관함';
 }

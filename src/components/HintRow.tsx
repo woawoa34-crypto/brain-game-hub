@@ -63,16 +63,18 @@ export function HintRow({ hint, rank, isLatest, onSelectForGuess }: HintRowProps
                 </span>
               )}
             </div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-400">
               <span className={tierTextColor}>{label}</span>
               <span aria-hidden="true" className="text-slate-600">·</span>
               <span className="font-mono tabular-nums text-slate-500">
                 #{hint.order}
               </span>
-              <span aria-hidden="true" className="hidden sm:inline text-slate-600">·</span>
-              <span className="hidden sm:inline font-mono tabular-nums text-slate-500">
-                cos {hint.rawCosine.toFixed(3)}
-              </span>
+              {hint.reason && (
+                <>
+                  <span aria-hidden="true" className="text-slate-600">·</span>
+                  <span className="truncate text-slate-300/90">{hint.reason}</span>
+                </>
+              )}
             </div>
           </div>
         </div>

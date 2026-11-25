@@ -40,7 +40,7 @@ export function StartScreen({
           단어의 의미 거리로 숨겨진 정답을 찾으세요
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-slate-400 sm:text-base [text-wrap:balance]">
-          힌트 단어를 입력하면 AI 임베딩이 정답과의 코사인 유사도를 0%에서 100%로 계산합니다.
+          힌트 단어를 입력하면 AI가 한국어 연상·의미 채점 기준에 따라 유사도를 0%에서 100%로 계산합니다.
           점수가 높은 단어를 따라 의미를 좁혀가며 정답에 도전해보세요.
         </p>
       </section>
@@ -179,18 +179,18 @@ export function StartScreen({
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-300">
             <div className="flex items-center gap-2">
               <span className="h-2 w-5 rounded-full bg-emerald-500" aria-hidden="true" />
-              <span className="font-mono tabular-nums text-emerald-400">80%+</span>
-              <span className="text-slate-400">매우 가까움</span>
+              <span className="font-mono tabular-nums text-emerald-400">90%+ / 70%+</span>
+              <span className="text-slate-400">핵심 연관어 · 밀접한 관련</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="h-2 w-5 rounded-full bg-amber-400" aria-hidden="true" />
-              <span className="font-mono tabular-nums text-amber-300">50–79%</span>
-              <span className="text-slate-400">관련 있음</span>
+              <span className="font-mono tabular-nums text-amber-300">45–69%</span>
+              <span className="text-slate-400">간접 연상</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="h-2 w-5 rounded-full bg-slate-500" aria-hidden="true" />
-              <span className="font-mono tabular-nums text-slate-400">50% 미만</span>
-              <span className="text-slate-400">거리가 멈</span>
+              <span className="font-mono tabular-nums text-slate-400">45% 미만</span>
+              <span className="text-slate-400">약한 연결 · 무관함</span>
             </div>
           </div>
         </div>

@@ -8,12 +8,9 @@ import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const EMBEDDING_MODEL = 'gemini-embedding-001';
 const WORD_GENERATION_MODEL = 'gemini-4-hydrogen';
 const SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const MAX_SESSIONS = 500;
-const COSINE_MIN = 0.45;
-const COSINE_MAX = 0.96;
 
 const SOLO_THEMES = [
   '자연과 풍경',
@@ -47,6 +44,7 @@ interface StoredHint {
   word: string;
   similarity: number;
   rawCosine: number;
+  reason: string;
   order: number;
   isExactMatch: boolean;
 }
@@ -56,7 +54,6 @@ interface GameSession {
   mode: 'solo' | 'setter';
   targetWord: string;
   targetNormalized: string;
-  targetVector: number[];
   createdAt: number;
   hintCount: number;
   answerAttempts: number;
@@ -72,7 +69,7 @@ function resolveApiKey(req: Request): string {
   const headerKey = req.header('x-gemini-api-key')?.trim();
   const key = headerKey || process.env.GEMINI_API_KEY;
   if (!key) {
-    throw new Error('GEMINI_API_KEY가 설정되지 않았습니다. 메인 로비 하단에서 개인 Gemini API 키를 입력해주세요.');
+    throw new Error('GEMINI_API_KEY가 설정되지 않았습니다. 상단의 API 키 설정 배지에서 개인 Gemini API 키를 입력해주세요.');
   }
   return key;
 }
@@ -133,51 +130,85 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
   throw lastError;
 }
 
-async function embedKoreanWord(word: string, apiKey: string): Promise<number[]> {
+const RUBRIC_SYSTEM_INSTRUCTION = `당신은 한국어 단어 연상·의미 유사도 추리 게임 '말결'의 전문 채점관입니다.
+정답 단어와 힌트 단어 사이의 한국어 의미적·상황적·연상적 거리를 아래 5단계 채점 기준표에 따라 0.0 ~ 99.9점으로 정교하게 채점하세요. (정답과 완전히 같은 단어는 서버에서 100점으로 처리하므로 99.9 이하만 부여)
+
+[5단계 한국어 연상·의미 채점 기준표]
+1. 90.0 ~ 99.9점 (핵심 연관어 · 동의어/직접 연상)
+   - 정답의 동의어, 유의어, 반의어, 핵심 구성 요소, 또는 한국인이 정답을 들었을 때 즉시 떠올리는 1순위 짝꿍 단어.
+   - 예(정답 '바다'): '파도'(95.5), '해변'(94.0), '바닷물'(96.5), '수평선'(92.0), '모래사장'(91.5), '갈매기'(90.5)
+2. 70.0 ~ 89.9점 (동일 범주 · 밀접한 상황)
+   - 같은 상위 개념에 속하거나 같은 장소·상황에서 흔히 함께 쓰이는 관련성이 매우 높은 단어.
+   - 예(정답 '바다'): '배'(84.0), '수영'(82.5), '물고기'(85.0), '조개'(80.0), '등대'(83.0), '여름'(74.0)
+3. 45.0 ~ 69.9점 (간접 연상 · 중간 연결고리)
+   - 한두 단계를 거쳐 자연스럽게 연상되거나, 공통 속성(색·감각·행동·배경)을 공유하는 단어.
+   - 예(정답 '바다'): '여행'(62.0), '하늘'(58.0), '바람'(56.5), '휴가'(64.0), '소금'(65.0), '파란색'(55.0)
+4. 20.0 ~ 44.9점 (약한 연결 · 주변 배경)
+   - 억지스럽지는 않으나 직접 연결하기엔 거리가 먼 추상적·부분적 접점.
+   - 예(정답 '바다'): '지도'(34.0), '신발'(26.0), '카메라'(31.0), '시간'(22.0)
+5. 0.0 ~ 19.9점 (무관함)
+   - 의미적·상황적 접점이 거의 없는 단어.
+   - 예(정답 '바다'): '연필'(8.0), '냉장고'(11.0), '수학'(5.0), '키보드'(4.0)
+
+[채점 원칙]
+- 실제 한국인 체감에 맞게 점수를 후하게 보정하세요. 일상에서 자연스럽게 함께 떠오르면 70점 이상, 한 단계 연상이 가능하면 45점 이상을 부여하세요.
+- 소수점 첫째 자리까지 섬세하게 구분해 순위 변별력이 생기도록 채점하세요.
+- reason은 이 점수를 준 근거를 15자 이내 한국어로 간결하게 작성하되, 정답 단어나 그 글자를 직접 노출하는 스포일러는 절대 금지입니다 (예: "핵심 자연 현상 짝꿍", "같은 장소·활동 연관", "공통 분위기 간접 연상", "의미 접점 거의 없음").`;
+
+async function scoreHintWithRubric(
+  targetWord: string,
+  hintWord: string,
+  apiKey: string,
+): Promise<{ score: number; reason: string }> {
   const ai = getGeminiClient(apiKey);
   const response = await withRetry(() =>
-    ai.models.embedContent({
-      model: EMBEDDING_MODEL,
-      contents: word,
+    ai.models.generateContent({
+      model: WORD_GENERATION_MODEL,
+      contents: `정답 단어: "${targetWord}"
+힌트 단어: "${hintWord}"
+위 5단계 기준표에 따라 유사도 점수(score)와 짧은 이유(reason)를 JSON으로 반환하세요.`,
       config: {
-        taskType: 'SEMANTIC_SIMILARITY',
+        systemInstruction: RUBRIC_SYSTEM_INSTRUCTION,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            score: {
+              type: Type.NUMBER,
+              description: '0.0 이상 99.9 이하의 유사도 점수 (소수점 첫째 자리)',
+            },
+            reason: {
+              type: Type.STRING,
+              description: '정답 스포일러 없이 15자 이내로 작성한 짧은 연상 근거',
+            },
+          },
+          required: ['score', 'reason'],
+        },
       },
     }),
   );
 
-  const values = response.embeddings?.[0]?.values;
-  if (!values || values.length === 0) {
-    throw new Error('임베딩 벡터를 생성하지 못했습니다.');
+  const rawText = (response.text ?? '').trim();
+  try {
+    const parsed = JSON.parse(rawText) as { score?: unknown; reason?: unknown };
+    const numericScore = Number(parsed.score);
+    if (!Number.isFinite(numericScore)) {
+      throw new Error('유효하지 않은 유사도 점수 형식입니다.');
+    }
+    const clamped = Math.max(0, Math.min(99.9, numericScore));
+    const rounded = Math.round(clamped * 10) / 10;
+    const rawReason =
+      typeof parsed.reason === 'string'
+        ? parsed.reason.trim().replace(/\s+/g, ' ').slice(0, 24)
+        : '';
+    return {
+      score: rounded,
+      reason: rawReason || '의미 연상 분석 완료',
+    };
+  } catch {
+    throw new Error('AI가 유사도 점수를 올바른 형식으로 계산하지 못했습니다.');
   }
-  return values;
-}
-
-function computeCosineSimilarity(vecA: number[], vecB: number[]): number {
-  const len = Math.min(vecA.length, vecB.length);
-  if (len === 0) return 0;
-
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < len; i += 1) {
-    const a = vecA[i];
-    const b = vecB[i];
-    dot += a * b;
-    normA += a * a;
-    normB += b * b;
-  }
-
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-function convertCosineToPercent(rawCosine: number, isExactMatch: boolean): number {
-  if (isExactMatch) return 100;
-  const normalized = (rawCosine - COSINE_MIN) / (COSINE_MAX - COSINE_MIN);
-  const clamped = Math.max(0, Math.min(1, normalized));
-  const percent = Math.round(clamped * 1000) / 10;
-  return Math.min(99.9, percent);
 }
 
 async function generateSoloKoreanNoun(apiKey: string): Promise<string> {
@@ -251,7 +282,7 @@ function getFriendlyApiError(error: unknown): { status: number; message: string 
   if (status === 400 || status === 403 || rawMessage.includes('API_KEY_INVALID') || rawMessage.includes('PERMISSION_DENIED')) {
     return {
       status: 403,
-      message: 'Gemini API 키가 유효하지 않거나 권한이 없습니다. 로비의 API 키 설정을 확인해주세요.',
+      message: 'Gemini API 키가 유효하지 않거나 권한이 없습니다. 상단의 API 키 설정 배지를 확인해주세요.',
     };
   }
   if (status === 429 || rawMessage.includes('RESOURCE_EXHAUSTED')) {
@@ -304,14 +335,12 @@ async function createApp() {
         targetWord = await generateSoloKoreanNoun(apiKey);
       }
 
-      const targetVector = await embedKoreanWord(targetWord, apiKey);
       const sessionId = crypto.randomUUID();
       const session: GameSession = {
         id: sessionId,
         mode,
         targetWord,
         targetNormalized: normalizeWord(targetWord),
-        targetVector,
         createdAt: Date.now(),
         hintCount: 0,
         answerAttempts: 0,
@@ -370,21 +399,27 @@ async function createApp() {
       }
 
       const isExactMatch = normalized === session.targetNormalized;
-      let rawCosine = 1.0;
+      let similarity = 100;
+      let reason = '정답 단어와 완전 일치';
 
       if (!isExactMatch) {
-        const hintVector = await embedKoreanWord(rawWord, apiKey);
-        rawCosine = computeCosineSimilarity(session.targetVector, hintVector);
+        const rubricResult = await scoreHintWithRubric(
+          session.targetWord,
+          rawWord,
+          apiKey,
+        );
+        similarity = rubricResult.score;
+        reason = rubricResult.reason;
       }
 
-      const similarity = convertCosineToPercent(rawCosine, isExactMatch);
       session.hintCount += 1;
 
       const hint: StoredHint = {
         id: crypto.randomUUID(),
         word: rawWord,
         similarity,
-        rawCosine: Math.round(rawCosine * 1000) / 1000,
+        rawCosine: Math.round((similarity / 100) * 1000) / 1000,
+        reason,
         order: session.hintCount,
         isExactMatch,
       };

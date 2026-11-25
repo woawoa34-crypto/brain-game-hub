@@ -90,7 +90,7 @@ export function getPlacementSequence(roundMode: RoundMode): number[] {
 export function getValidMoves(
   piece: Piece,
   pieces: Piece[],
-  walls: Set<string>,
+  walls: ReadonlySet<string> | ReadonlyMap<string, number>,
   wallBreakMode: boolean,
 ): MoveOption[] {
   const occupied = getOccupiedMap(pieces);
@@ -151,7 +151,7 @@ export function getValidMoves(
 export function getEmptyEdgesForCell(
   r: number,
   c: number,
-  walls: Set<string>,
+  walls: ReadonlySet<string> | ReadonlyMap<string, number>,
 ): EdgeOption[] {
   const options: EdgeOption[] = [];
   for (const d of DIRS) {
@@ -167,7 +167,10 @@ export function getEmptyEdgesForCell(
   return options;
 }
 
-export function analyzeBoard(pieces: Piece[], walls: Set<string>): BoardAnalysis {
+export function analyzeBoard(
+  pieces: Piece[],
+  walls: ReadonlySet<string> | ReadonlyMap<string, number>,
+): BoardAnalysis {
   const cellToComponent: number[][] = Array.from({ length: BOARD_SIZE }, () =>
     Array(BOARD_SIZE).fill(-1),
   );
@@ -299,7 +302,7 @@ export function calculateScores(
 export function playerHasAnyLegalMove(
   player: PlayerState,
   pieces: Piece[],
-  walls: Set<string>,
+  walls: ReadonlySet<string> | ReadonlyMap<string, number>,
 ): boolean {
   const owned = pieces.filter((p) => p.playerId === player.id);
   for (const piece of owned) {
@@ -318,7 +321,7 @@ export function chooseAIPlacement(
   playerId: number,
   remainingShapes: PieceShape[],
   pieces: Piece[],
-  walls: Set<string>,
+  walls: ReadonlySet<string> | ReadonlyMap<string, number>,
 ): { r: number; c: number; shape: PieceShape } {
   const occupied = getOccupiedMap(pieces);
   const shape = remainingShapes[0] ?? 'square';
@@ -360,7 +363,7 @@ export function chooseAITurnAction(
   player: PlayerState,
   players: PlayerState[],
   pieces: Piece[],
-  walls: Set<string>,
+  walls: ReadonlySet<string> | ReadonlyMap<string, number>,
 ): {
   pieceId: string;
   move: MoveOption;
@@ -402,7 +405,7 @@ export function chooseAITurnAction(
       const nextPieces = pieces.map((p) =>
         p.id === piece.id ? { ...p, r: move.r, c: move.c } : p,
       );
-      const wallsAfterMove = new Set(walls);
+      const wallsAfterMove = new Set(walls.keys());
       if (move.brokenWallKey) {
         wallsAfterMove.delete(move.brokenWallKey);
       }
@@ -412,7 +415,7 @@ export function chooseAITurnAction(
         emptyEdges.length > 0 ? emptyEdges.map((e) => e.wallKey) : [null];
 
       for (const wallKey of wallCandidates) {
-        const nextWalls = new Set(wallsAfterMove);
+        const nextWalls = new Set(wallsAfterMove.keys());
         if (wallKey) {
           nextWalls.add(wallKey);
         }

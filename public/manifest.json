@@ -1,0 +1,38 @@
+{
+  "id": "./",
+  "name": "브레인 서바이벌",
+  "short_name": "브레인게임",
+  "description": "AI 유사어 추리 말결, 국기 기억력, 벽바둑 2, 블라인드 미로, 7개의 컵 심리전을 즐기는 두뇌 서바이벌 게임 허브",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0B0F17",
+  "background_color": "#0B0F17",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
