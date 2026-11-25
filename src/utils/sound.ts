@@ -167,6 +167,59 @@ class SoundEngine {
 
     void this.playTone(520, 0.07, 0, 'sine', 0.045);
   }
+
+  public async playClick(): Promise<void> {
+    const audioCtx = await this.ensureActiveContext();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    void this.playTone(620, 0.045, 0, 'sine', 0.04);
+  }
+
+  public async playPlace(): Promise<void> {
+    const audioCtx = await this.ensureActiveContext();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    void this.playTone(392, 0.08, 0, 'triangle', 0.07);
+    void this.playTone(523.25, 0.06, 0.03, 'sine', 0.05);
+  }
+
+  public async playError(): Promise<void> {
+    const audioCtx = await this.ensureActiveContext();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    void this.playTone(220, 0.12, 0, 'triangle', 0.065);
+    void this.playTone(175, 0.16, 0.08, 'triangle', 0.065);
+  }
+
+  public async playBump(): Promise<void> {
+    const audioCtx = await this.ensureActiveContext();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    void this.playTone(150, 0.11, 0, 'triangle', 0.08);
+  }
+
+  public async playTurnAlert(): Promise<void> {
+    const audioCtx = await this.ensureActiveContext();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    void this.playTone(659.25, 0.09, 0, 'sine', 0.055);
+    void this.playTone(880, 0.12, 0.06, 'sine', 0.055);
+  }
 }
 
 export const soundEngine = new SoundEngine();

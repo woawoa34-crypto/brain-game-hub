@@ -1,6 +1,6 @@
 const API_KEY_STORAGE_KEY = 'brain_survival_gemini_api_key';
 const GEMINI_ENDPOINT_BASE =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
 const SOLO_THEMES = [
   '자연과 풍경',
