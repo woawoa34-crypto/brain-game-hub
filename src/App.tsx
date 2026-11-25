@@ -42,7 +42,7 @@ import {
 } from './services/onlineRoom';
 import type { ActiveGame } from './types';
 import type { OnlineRoomData } from './types/online';
-import { soundEngine } from './utils/sound';
+import { soundEngine, unlockAudio } from './utils/sound';
 
 const API_KEY_STORAGE_KEY = 'brain_survival_gemini_api_key';
 
@@ -66,7 +66,7 @@ export default function App() {
       return '';
     }
   });
-  const [hasServerKey, setHasServerKey] = useState<boolean>(false);
+  const [hasServerKey] = useState<boolean>(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [quickRulebookOpen, setQuickRulebookOpen] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
@@ -92,15 +92,27 @@ export default function App() {
   const isOnlineMatch = Boolean(roomSession && onlineRoom && onlineRoom.status === 'PLAYING');
   const isPaused = isOnlineMatch ? Boolean(onlineRoom?.isPaused) : localPaused;
 
+  // Global first-interaction AudioContext unlock for iOS Safari & mobile browsers
   useEffect(() => {
-    fetch('/api/config')
-      .then((res) => res.json())
-      .then((data: { hasServerKey?: boolean }) => {
-        setHasServerKey(Boolean(data.hasServerKey));
-      })
-      .catch(() => {
-        setHasServerKey(false);
+    const handleUnlock = () => {
+      void unlockAudio().then((unlocked) => {
+        if (unlocked) {
+          window.removeEventListener('touchstart', handleUnlock);
+          window.removeEventListener('pointerdown', handleUnlock);
+          window.removeEventListener('click', handleUnlock);
+        }
       });
+    };
+
+    window.addEventListener('touchstart', handleUnlock, { passive: true });
+    window.addEventListener('pointerdown', handleUnlock, { passive: true });
+    window.addEventListener('click', handleUnlock, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleUnlock);
+      window.removeEventListener('pointerdown', handleUnlock);
+      window.removeEventListener('click', handleUnlock);
+    };
   }, []);
 
   // Auto-join via ?room=XXXX invite link or recover stored session on mount
@@ -376,9 +388,9 @@ export default function App() {
     ) : undefined;
 
   return (
-    <div className="flex h-dvh w-full flex-col overflow-hidden bg-[#0B0F17] text-slate-100">
+    <div className="flex min-h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-[#0B0F17] text-slate-100 min-[680px]:h-dvh min-[680px]:overflow-hidden">
       {/* Fixed 44px Slim Header across Lobby & Games */}
-      <header className="z-30 h-11 shrink-0 border-b border-slate-800/80 bg-[#0B0F17]/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-30 h-11 shrink-0 border-b border-slate-800/80 bg-[#0B0F17]/95 backdrop-blur-sm">
         <div className="mx-auto flex h-full w-full max-w-6xl items-center justify-between gap-2 px-3 sm:gap-3 sm:px-5">
           {/* Left Zone: Brand on Lobby, or [← 로비로/대기실] + Game Title + Online HUD */}
           <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
@@ -574,7 +586,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto min-[680px]:overflow-hidden">
         {activeGame === 'LOBBY' && (
           <LobbyScreen
             savedApiKey={savedApiKey}

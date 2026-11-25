@@ -123,9 +123,9 @@ export function LobbyScreen({
   ];
 
   return (
-    <main className="mx-auto flex h-full w-full max-w-6xl flex-col justify-between overflow-y-auto px-3 py-2 sm:overflow-hidden sm:px-5 sm:py-4">
+    <main className="mx-auto flex w-full max-w-6xl flex-col justify-between overflow-y-auto px-3 py-3 text-sm min-[680px]:h-full min-[680px]:overflow-hidden min-[680px]:px-5 min-[680px]:py-4">
       {/* Compact Header + Local / Online Mode Switcher */}
-      <section className="flex shrink-0 flex-col items-center justify-between gap-2 sm:flex-row sm:gap-4">
+      <section className="flex shrink-0 flex-col items-center justify-between gap-2 min-[680px]:flex-row min-[680px]:gap-4">
         <div className="text-center sm:text-left">
           <p className="text-[11px] font-medium text-sky-400 sm:text-xs">
             한국어 두뇌 서바이벌 미니게임 허브

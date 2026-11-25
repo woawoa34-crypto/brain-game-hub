@@ -173,6 +173,9 @@ export function GradientCupGame({
   const initializedRoundRef = useRef<number | null>(null);
   const resolvedRevealKeyRef = useRef<string | null>(null);
   const lastOnlineRoundKeyRef = useRef<number | null>(null);
+  const playedRevealSoundKeyRef = useRef<string | null>(null);
+  const playedVictoryKeyRef = useRef<string | null>(null);
+  const prevPickTurnRef = useRef<boolean>(false);
 
   // Host initializes online GradientCup match state in RTDB
   useEffect(() => {
@@ -309,7 +312,7 @@ export function GradientCupGame({
     const next = [...draftCups];
     next[targetSlot] = digit;
     setDraftCups(next);
-    soundEngine.playSelect();
+    soundEngine.playPlace();
 
     const nextEmpty = next.findIndex((val, i) => i > targetSlot && val === null);
     if (nextEmpty !== -1) {
@@ -330,6 +333,7 @@ export function GradientCupGame({
     next[idx] = null;
     setDraftCups(next);
     setFocusedCupIdx(idx);
+    soundEngine.playClick();
   };
 
   const handleAutoRecommend = () => {
@@ -337,7 +341,7 @@ export function GradientCupGame({
     const rec = generateRecommendedPlacement();
     setDraftCups(rec);
     setFocusedCupIdx(6);
-    soundEngine.playHintResult(85);
+    soundEngine.playPlace();
   };
 
   const finalizeCurrentPlacement = useCallback(
@@ -396,6 +400,10 @@ export function GradientCupGame({
 
     const timer = window.setInterval(() => {
       setPlacementTimeLeft((prev) => {
+        const next = prev - 1;
+        if (next >= 1 && next <= 5) {
+          soundEngine.playTick();
+        }
         if (prev <= 1) {
           if (!timeoutGuardRef.current) {
             timeoutGuardRef.current = true;
@@ -408,7 +416,7 @@ export function GradientCupGame({
           }
           return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 
@@ -444,11 +452,11 @@ export function GradientCupGame({
       if (p1Val > p2Val) {
         roundWinner = 1;
         setP1Score((s) => s + 1);
-        soundEngine.playHintResult(90);
+        soundEngine.playClick();
       } else if (p2Val > p1Val) {
         roundWinner = 2;
         setP2Score((s) => s + 1);
-        soundEngine.playWrongGuess();
+        soundEngine.playError();
       } else {
         soundEngine.playTick();
       }
@@ -480,7 +488,7 @@ export function GradientCupGame({
       if (isOnline) {
         if (!onlineRoom || !myRole || myRole !== effectiveLeadRole) return;
         if (effectiveBattleSubPhase !== 'LEAD_PICK') return;
-        soundEngine.playSelect();
+        soundEngine.playPlace();
         void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'gradientCup'), {
           leadCupIdx: cupIdx,
           battleSubPhase: 'FOLLOW_PICK',
@@ -488,7 +496,7 @@ export function GradientCupGame({
         return;
       }
 
-      soundEngine.playSelect();
+      soundEngine.playPlace();
       setLeadChosenIdx(cupIdx);
       if (mode === 'local') {
         setBattleSubPhase('HANDOFF_FOLLOW');
@@ -518,7 +526,7 @@ export function GradientCupGame({
         const myVal = myLocalSetup[cupIdx];
         if (typeof myVal !== 'number') return;
 
-        soundEngine.playSelect();
+        soundEngine.playPlace();
         void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'gradientCup'), {
           followCupIdx: cupIdx,
           [`roundReveals/${effectiveRound}/${myRole}`]: myVal,
@@ -528,6 +536,7 @@ export function GradientCupGame({
       }
 
       if (leadChosenIdx === null) return;
+      soundEngine.playPlace();
       commitReveal(leadChosenIdx, cupIdx);
     },
     [
@@ -569,12 +578,8 @@ export function GradientCupGame({
     let roundWinner: 1 | 2 | 'DRAW' = 'DRAW';
     if (p1Val > p2Val) {
       roundWinner = 1;
-      soundEngine.playHintResult(90);
     } else if (p2Val > p1Val) {
       roundWinner = 2;
-      soundEngine.playWrongGuess();
-    } else {
-      soundEngine.playTick();
     }
 
     const nextP1Score = effectiveP1Score + (roundWinner === 1 ? 1 : 0);
@@ -642,6 +647,38 @@ export function GradientCupGame({
     ((effectiveBattleSubPhase === 'LEAD_PICK' && myRole === effectiveLeadRole) ||
       (effectiveBattleSubPhase === 'FOLLOW_PICK' && myRole === effectiveFollowRole));
 
+  // Online turn alert & round reveal sounds on both devices
+  useEffect(() => {
+    if (!isOnline || effectivePhase !== 'BATTLE') {
+      prevPickTurnRef.current = false;
+      return;
+    }
+    if (isMyOnlinePickTurn && !prevPickTurnRef.current) {
+      soundEngine.playTurnAlert();
+    }
+    prevPickTurnRef.current = isMyOnlinePickTurn;
+  }, [isOnline, effectivePhase, isMyOnlinePickTurn]);
+
+  useEffect(() => {
+    if (!isOnline || effectivePhase !== 'BATTLE' || effectiveBattleSubPhase !== 'REVEAL') return;
+    const latest = effectiveHistory[effectiveHistory.length - 1];
+    if (!latest) return;
+    const revealSoundKey = `${matchNumber}:${latest.round}`;
+    if (playedRevealSoundKeyRef.current === revealSoundKey) return;
+    playedRevealSoundKeyRef.current = revealSoundKey;
+
+    if (latest.winner === 'DRAW') {
+      soundEngine.playTick();
+    } else {
+      const winnerRole: OnlineRole = latest.winner === 1 ? 'P1' : 'P2';
+      if (winnerRole === myRole) {
+        soundEngine.playClick();
+      } else {
+        soundEngine.playError();
+      }
+    }
+  }, [isOnline, effectivePhase, effectiveBattleSubPhase, effectiveHistory, matchNumber, myRole]);
+
   // Online 45s battle countdown & auto-pick random remaining cup
   useEffect(() => {
     if (
@@ -655,6 +692,10 @@ export function GradientCupGame({
 
     const timer = window.setInterval(() => {
       setBattleShotClock((prev) => {
+        const next = prev - 1;
+        if (next >= 1 && next <= 5) {
+          soundEngine.playTick();
+        }
         if (prev <= 1) {
           if (isMyOnlinePickTurn && !battleShotGuardRef.current && myRole) {
             battleShotGuardRef.current = true;
@@ -671,7 +712,7 @@ export function GradientCupGame({
           }
           return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 
@@ -701,9 +742,27 @@ export function GradientCupGame({
     });
   }, [isOnline, onlineRoom, myRole, onlineCup, myLocalSetup]);
 
-  // Record cumulative room win on RESULT
+  // Record cumulative room win & play victory sound on RESULT
   useEffect(() => {
-    if (!isOnline || !onlineRoom || effectivePhase !== 'RESULT') return;
+    if (effectivePhase !== 'RESULT') return;
+    const victoryKey = isOnline ? `GRADIENTCUP_GAME_${matchNumber}` : `local:${history.length}:${p1Score}:${p2Score}`;
+    if (playedVictoryKeyRef.current !== victoryKey) {
+      playedVictoryKeyRef.current = victoryKey;
+      if (effectiveP1Score === effectiveP2Score) {
+        soundEngine.playTick();
+      } else if (isOnline) {
+        const winnerRole: OnlineRole = effectiveP1Score > effectiveP2Score ? 'P1' : 'P2';
+        if (winnerRole === myRole) {
+          soundEngine.playVictory();
+        } else {
+          soundEngine.playError();
+        }
+      } else {
+        soundEngine.playVictory();
+      }
+    }
+
+    if (!isOnline || !onlineRoom) return;
     if (effectiveP1Score === effectiveP2Score) return;
     const winnerRole: OnlineRole = effectiveP1Score > effectiveP2Score ? 'P1' : 'P2';
     void recordMatchWinnerScore(
@@ -711,7 +770,18 @@ export function GradientCupGame({
       winnerRole,
       `GRADIENTCUP_GAME_${matchNumber}`,
     );
-  }, [isOnline, onlineRoom, effectivePhase, effectiveP1Score, effectiveP2Score, matchNumber]);
+  }, [
+    isOnline,
+    onlineRoom,
+    effectivePhase,
+    effectiveP1Score,
+    effectiveP2Score,
+    matchNumber,
+    myRole,
+    history.length,
+    p1Score,
+    p2Score,
+  ]);
 
   // AI Bot turn automation during BATTLE (Local only, freezes on Pause)
   useEffect(() => {
@@ -766,7 +836,6 @@ export function GradientCupGame({
       void fbRunTransaction(cupRef, (current: OnlineGradientCupState | null) => {
         if (!current || current.battleSubPhase !== 'REVEAL') return current;
         if (current.round >= 7) {
-          soundEngine.playVictory();
           return {
             ...current,
             phase: 'RESULT' as const,
@@ -795,7 +864,6 @@ export function GradientCupGame({
 
     const latestRecord = history[history.length - 1];
     if (round >= 7) {
-      soundEngine.playVictory();
       setPhase('RESULT');
       return;
     }

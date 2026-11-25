@@ -27,7 +27,10 @@ export function SquareBoardBox({
 
     const update = () => {
       const rect = el.getBoundingClientRect();
-      const avail = Math.min(rect.width, rect.height, maxPx);
+      const isFoldOrDesktop = window.innerWidth >= 680;
+      const avail = isFoldOrDesktop
+        ? Math.min(rect.width, rect.height, maxPx)
+        : Math.min(rect.width, Math.max(240, window.innerHeight * 0.54), maxPx);
       if (avail > 0) {
         setSize(Math.max(150, Math.floor(avail)));
       }
@@ -48,11 +51,11 @@ export function SquareBoardBox({
   return (
     <div
       ref={hostRef}
-      className={`flex h-full w-full min-h-0 min-w-0 items-center justify-center ${className}`}
+      className={`flex w-full min-h-0 min-w-0 items-center justify-center min-[680px]:h-full ${className}`}
     >
       <div
         style={{ width: `${size}px`, height: `${size}px` }}
-        className="shrink-0"
+        className="max-w-full shrink-0"
       >
         {children}
       </div>
@@ -116,7 +119,7 @@ export function GameBoardLayout({
   const resolvedControl = controlArea ?? controlPanel;
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden px-2.5 py-1.5 sm:px-5 sm:py-2.5">
+    <div className="mx-auto flex w-full max-w-6xl flex-col overflow-y-auto px-3 py-2 text-sm min-[680px]:h-full min-[680px]:overflow-hidden min-[680px]:px-5 min-[680px]:py-2.5">
       {/* Optional standalone 44px fixed slim header */}
       {(title || onBackToLobby) && (
         <div className="mb-1.5 flex h-11 shrink-0 items-center justify-between gap-2 rounded-xl border border-slate-800/90 bg-[#131926] px-2.5 sm:px-3.5">
@@ -206,17 +209,19 @@ export function GameBoardLayout({
 
       {noticeBar && <div className="mt-1.5 shrink-0">{noticeBar}</div>}
 
-      {/* Main Split Table (>= 640px: 65% Left / 35% Right; < 640px: Middle / Bottom) */}
-      <div className="mt-1.5 flex min-h-0 flex-1 flex-col gap-2 sm:mt-2.5 sm:flex-row sm:gap-4">
+      {/* Main Split Table (>= 680px: 65% Left / 35% Right; < 680px: Vertical Scrollable Stack) */}
+      <div className="mt-1.5 flex flex-col gap-2 min-[680px]:mt-2.5 min-[680px]:min-h-0 min-[680px]:flex-1 min-[680px]:flex-row min-[680px]:gap-4">
         <section
-          className={`flex min-h-0 min-w-0 flex-1 flex-col sm:w-[65%] sm:flex-none ${
-            scrollableMain ? 'overflow-y-auto pr-0.5' : 'overflow-hidden justify-center'
+          className={`flex min-w-0 flex-col min-[680px]:min-h-0 min-[680px]:w-[65%] min-[680px]:flex-none ${
+            scrollableMain
+              ? 'max-h-[46dvh] overflow-y-auto pr-0.5 min-[680px]:max-h-none'
+              : 'items-center justify-center min-[680px]:overflow-hidden'
           }`}
         >
           {resolvedBoard}
         </section>
 
-        <aside className="flex shrink-0 flex-col justify-center gap-2 sm:w-[35%] sm:min-h-0 sm:justify-start sm:overflow-y-auto">
+        <aside className="flex shrink-0 flex-col justify-center gap-2 pb-4 min-[680px]:w-[35%] min-[680px]:min-h-0 min-[680px]:justify-start min-[680px]:overflow-y-auto min-[680px]:pb-0">
           {resolvedControl}
           {onlineReactionBar}
         </aside>

@@ -25,14 +25,17 @@ import {
   getSimilarityTier,
   type GameMode,
   type GamePhase,
-  type GiveUpResponse,
-  type GuessAnswerResponse,
   type HintEntry,
-  type StartGameResponse,
-  type SubmitHintResponse,
 } from '../types';
 import type { OnlineGameSharedProps, OnlineRole, OnlineWordChainState } from '../types/online';
 import { soundEngine } from '../utils/sound';
+import {
+  generateSoloKoreanNoun,
+  normalizeWord,
+  resolveStoredApiKey,
+  sanitizeDisplayWord,
+  scoreHintWithRubric,
+} from '../utils/wordChainGemini';
 import { GameBoardLayout } from './GameBoardLayout';
 import { HintRow } from './HintRow';
 import { ResultSummary } from './ResultSummary';
@@ -40,6 +43,16 @@ import { StartScreen } from './StartScreen';
 import { VictoryConfetti } from './VictoryConfetti';
 
 const ONLINE_SHOT_CLOCK_SEC = 45;
+
+interface ClientWordSession {
+  mode: GameMode;
+  targetWord: string;
+  targetNormalized: string;
+  hintCount: number;
+  answerAttempts: number;
+  hintsByNormalized: Map<string, HintEntry>;
+  finished: boolean;
+}
 
 interface WordChainGameProps extends OnlineGameSharedProps {
   customApiKey: string;
@@ -91,11 +104,13 @@ export function WordChainGame({
   const [isGivingUp, setIsGivingUp] = useState(false);
   const [confirmingGiveUp, setConfirmingGiveUp] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
 
-  // Online shot clock + host proxy refs
+  // Online shot clock + client-side session refs
   const [shotClock, setShotClock] = useState<number>(ONLINE_SHOT_CLOCK_SEC);
   const [isRematching, setIsRematching] = useState(false);
-  const hostSessionIdRef = useRef<string | null>(null);
+  const localSessionRef = useRef<ClientWordSession | null>(null);
+  const hostSessionRef = useRef<ClientWordSession | null>(null);
   const initializedRoundRef = useRef<number>(0);
   const processedReqIdRef = useRef<string | null>(null);
   const scoredMatchRef = useRef<string | null>(null);
@@ -104,13 +119,16 @@ export function WordChainGame({
   const hintInputRef = useRef<HTMLInputElement | null>(null);
   const guessInputRef = useRef<HTMLInputElement | null>(null);
 
-  const buildHeaders = useCallback((): Record<string, string> => {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (customApiKey.trim()) {
-      headers['x-gemini-api-key'] = customApiKey.trim();
-    }
-    return headers;
-  }, [customApiKey]);
+  const showErrorNotice = useCallback((msg: string) => {
+    setErrorMessage(msg);
+    setErrorToast(msg);
+  }, []);
+
+  useEffect(() => {
+    if (!errorToast) return;
+    const timer = window.setTimeout(() => setErrorToast(null), 4500);
+    return () => window.clearTimeout(timer);
+  }, [errorToast]);
 
   // Effective synced data for display
   const activeHints = useMemo(
@@ -147,6 +165,61 @@ export function WordChainGame({
     return { entry: sortedHints[index], rank: index + 1 };
   }, [isOnline, activeHints, latestHintId, sortedHints]);
 
+  const startOnlineHostMatch = useCallback(async () => {
+    if (!isOnline || !isHost || !onlineRoom) return;
+    processedReqIdRef.current = null;
+    hostSessionRef.current = null;
+    setErrorMessage(null);
+    setHintInput('');
+    setGuessInput('');
+    setGuessFeedback(null);
+
+    const stateRef = getRoomGameStateRef(onlineRoom.roomCode, 'wordChain');
+    await fbSet(stateRef, {
+      phase: 'STARTING',
+      maskedCount: 4,
+      currentTurn: firstTurnRole,
+      hints: [],
+      wrongGuesses: [],
+      pendingRequest: null,
+      lastError: null,
+      winner: null,
+      revealedWord: null,
+      hintCount: 0,
+      answerAttempts: 0,
+      roundKey: matchNumber,
+    } satisfies OnlineWordChainState);
+
+    try {
+      const apiKey = resolveStoredApiKey(customApiKey);
+      const targetWord = await generateSoloKoreanNoun(apiKey);
+      hostSessionRef.current = {
+        mode: 'solo',
+        targetWord,
+        targetNormalized: normalizeWord(targetWord),
+        hintCount: 0,
+        answerAttempts: 0,
+        hintsByNormalized: new Map(),
+        finished: false,
+      };
+      await fbUpdate(stateRef, {
+        phase: 'PLAYING',
+        maskedCount: Math.max(2, Math.min(8, targetWord.length)),
+        currentTurn: firstTurnRole,
+        lastError: null,
+      });
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : '방장의 Gemini API 키를 확인해 주세요. 출제에 실패했습니다.';
+      showErrorNotice(msg);
+      await fbUpdate(stateRef, {
+        lastError: msg,
+      });
+    }
+  }, [isOnline, isHost, onlineRoom, matchNumber, firstTurnRole, customApiKey, showErrorNotice]);
+
   // Online Host Initialization for each matchNumber
   useEffect(() => {
     if (!isOnline || !isHost || !onlineRoom) return;
@@ -154,68 +227,16 @@ export function WordChainGame({
     if (initializedRoundRef.current === matchNumber) return;
 
     initializedRoundRef.current = matchNumber;
-    processedReqIdRef.current = null;
-    hostSessionIdRef.current = null;
-    setErrorMessage(null);
-    setHintInput('');
-    setGuessInput('');
-    setGuessFeedback(null);
+    void startOnlineHostMatch();
+  }, [isOnline, isHost, onlineRoom, onlineWord, matchNumber, startOnlineHostMatch]);
 
-    const initOnlineWordMatch = async () => {
-      const stateRef = getRoomGameStateRef(onlineRoom.roomCode, 'wordChain');
-      await fbSet(stateRef, {
-        phase: 'STARTING',
-        maskedCount: 4,
-        currentTurn: firstTurnRole,
-        hints: [],
-        wrongGuesses: [],
-        pendingRequest: null,
-        lastError: null,
-        winner: null,
-        revealedWord: null,
-        hintCount: 0,
-        answerAttempts: 0,
-        roundKey: matchNumber,
-      } satisfies OnlineWordChainState);
-
-      try {
-        const res = await fetch('/api/game/start', {
-          method: 'POST',
-          headers: buildHeaders(),
-          body: JSON.stringify({ mode: 'solo' }),
-        });
-        const data = (await res.json()) as Partial<StartGameResponse> & { error?: string };
-        if (!res.ok || !data.sessionId) {
-          throw new Error(data.error || 'AI 단어 출제에 실패했습니다.');
-        }
-        hostSessionIdRef.current = data.sessionId;
-        await fbUpdate(stateRef, {
-          phase: 'PLAYING',
-          maskedCount: data.maskedCount ?? 4,
-          currentTurn: firstTurnRole,
-          lastError: null,
-        });
-      } catch (err) {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : '방장의 Gemini API 키가 없어 출제하지 못했습니다.';
-        await fbUpdate(stateRef, {
-          lastError: msg,
-        });
-      }
-    };
-
-    void initOnlineWordMatch();
-  }, [isOnline, isHost, onlineRoom, onlineWord, matchNumber, firstTurnRole, buildHeaders]);
-
-  // Process incoming online requests on Host (for both P1 & P2)
+  // Process incoming online requests on Host (for both P1 & P2) directly via Gemini REST API
   useEffect(() => {
     if (!isOnline || !isHost || !onlineRoom || !onlineWord) return;
     const req = onlineWord.pendingRequest;
     if (!req || req.id === processedReqIdRef.current) return;
-    const hostSid = hostSessionIdRef.current;
-    if (!hostSid) return;
+    const hostSession = hostSessionRef.current;
+    if (!hostSession) return;
 
     processedReqIdRef.current = req.id;
 
@@ -227,23 +248,54 @@ export function WordChainGame({
 
       try {
         if (req.type === 'hint') {
-          const response = await fetch('/api/game/hint', {
-            method: 'POST',
-            headers: buildHeaders(),
-            body: JSON.stringify({ sessionId: hostSid, word: req.word }),
-          });
-          const data = (await response.json()) as Partial<SubmitHintResponse> & { error?: string };
-          if (!response.ok || !data.hint) {
-            throw new Error(data.error || '유사도를 계산하지 못했습니다.');
+          const rawWord = sanitizeDisplayWord(req.word);
+          if (!rawWord || rawWord.length > 25) {
+            throw new Error('힌트 단어를 1~25자 이내로 입력해 주세요.');
           }
-          const returnedHint = data.hint;
+
+          const normalized = normalizeWord(rawWord);
+          const existing = hostSession.hintsByNormalized.get(normalized);
+          if (existing) {
+            await fbUpdate(stateRef, {
+              pendingRequest: null,
+              lastError: `'${existing.word}'은(는) 이미 입력된 힌트입니다.`,
+            });
+            return;
+          }
+
+          const isExactMatch = normalized === hostSession.targetNormalized;
+          let similarity = 100;
+          let reason = '정답 단어와 완전 일치';
+
+          if (!isExactMatch) {
+            const apiKey = resolveStoredApiKey(customApiKey);
+            const rubricResult = await scoreHintWithRubric(
+              hostSession.targetWord,
+              rawWord,
+              apiKey,
+            );
+            similarity = rubricResult.score;
+            reason = rubricResult.reason;
+          }
+
+          hostSession.hintCount += 1;
+          const returnedHint: HintEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            word: rawWord,
+            similarity,
+            rawCosine: Math.round((similarity / 100) * 1000) / 1000,
+            reason,
+            order: hostSession.hintCount,
+            isExactMatch,
+          };
+          hostSession.hintsByNormalized.set(normalized, returnedHint);
 
           if (returnedHint.isExactMatch) {
-            // Exact match hint awards instant victory!
+            hostSession.finished = true;
             await fbUpdate(stateRef, {
-              hints: data.alreadyTried ? curHints : [...curHints, returnedHint],
-              hintCount: data.hintCount ?? onlineWord.hintCount,
-              answerAttempts: data.answerAttempts ?? onlineWord.answerAttempts,
+              hints: [...curHints, returnedHint],
+              hintCount: hostSession.hintCount,
+              answerAttempts: hostSession.answerAttempts,
               phase: 'RESULT',
               winner: req.by,
               revealedWord: returnedHint.word,
@@ -254,69 +306,55 @@ export function WordChainGame({
           }
 
           await fbUpdate(stateRef, {
-            hints: data.alreadyTried ? curHints : [...curHints, returnedHint],
-            hintCount: data.hintCount ?? onlineWord.hintCount,
-            answerAttempts: data.answerAttempts ?? onlineWord.answerAttempts,
-            currentTurn: data.alreadyTried ? onlineWord.currentTurn : nextTurn,
+            hints: [...curHints, returnedHint],
+            hintCount: hostSession.hintCount,
+            answerAttempts: hostSession.answerAttempts,
+            currentTurn: nextTurn,
             pendingRequest: null,
-            lastError: data.alreadyTried
-              ? `'${returnedHint.word}'은(는) 이미 입력된 힌트입니다.`
-              : null,
+            lastError: null,
           });
         } else if (req.type === 'guess') {
-          const response = await fetch('/api/game/guess', {
-            method: 'POST',
-            headers: buildHeaders(),
-            body: JSON.stringify({ sessionId: hostSid, word: req.word }),
-          });
-          const data = (await response.json()) as Partial<GuessAnswerResponse> & { error?: string };
-          if (!response.ok || typeof data.correct !== 'boolean') {
-            throw new Error(data.error || '정답 확인 중 오류가 발생했습니다.');
-          }
+          const rawWord = sanitizeDisplayWord(req.word);
+          hostSession.answerAttempts += 1;
+          const isCorrect = normalizeWord(rawWord) === hostSession.targetNormalized;
 
-          if (data.correct && data.targetWord) {
+          if (isCorrect) {
+            hostSession.finished = true;
             await fbUpdate(stateRef, {
-              hintCount: data.hintCount ?? onlineWord.hintCount,
-              answerAttempts: data.answerAttempts ?? onlineWord.answerAttempts,
+              hintCount: hostSession.hintCount,
+              answerAttempts: hostSession.answerAttempts,
               phase: 'RESULT',
               winner: req.by,
-              revealedWord: data.targetWord,
+              revealedWord: hostSession.targetWord,
               pendingRequest: null,
               lastError: null,
             });
           } else {
-            const nextWrong = curWrong.includes(req.word) ? curWrong : [...curWrong, req.word];
+            const nextWrong = curWrong.includes(rawWord) ? curWrong : [...curWrong, rawWord];
             await fbUpdate(stateRef, {
               wrongGuesses: nextWrong,
-              hintCount: data.hintCount ?? onlineWord.hintCount,
-              answerAttempts: data.answerAttempts ?? onlineWord.answerAttempts,
+              hintCount: hostSession.hintCount,
+              answerAttempts: hostSession.answerAttempts,
               currentTurn: nextTurn,
               pendingRequest: null,
-              lastError: `'${req.word}'은(는) 정답이 아닙니다.`,
+              lastError: `'${rawWord}'은(는) 정답이 아닙니다.`,
             });
           }
         } else if (req.type === 'giveup') {
-          const response = await fetch('/api/game/give-up', {
-            method: 'POST',
-            headers: buildHeaders(),
-            body: JSON.stringify({ sessionId: hostSid }),
-          });
-          const data = (await response.json()) as Partial<GiveUpResponse> & { error?: string };
-          if (!response.ok || !data.targetWord) {
-            throw new Error(data.error || '정답을 불러오지 못했습니다.');
-          }
+          hostSession.finished = true;
           await fbUpdate(stateRef, {
-            hintCount: data.hintCount ?? onlineWord.hintCount,
-            answerAttempts: data.answerAttempts ?? onlineWord.answerAttempts,
+            hintCount: hostSession.hintCount,
+            answerAttempts: hostSession.answerAttempts,
             phase: 'RESULT',
             winner: 'GAVE_UP',
-            revealedWord: data.targetWord,
+            revealedWord: hostSession.targetWord,
             pendingRequest: null,
             lastError: null,
           });
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : '요청 처리 중 오류가 발생했습니다.';
+        showErrorNotice(msg);
         await fbUpdate(stateRef, {
           pendingRequest: null,
           lastError: msg,
@@ -325,7 +363,7 @@ export function WordChainGame({
     };
 
     void processReq();
-  }, [isOnline, isHost, onlineRoom, onlineWord, buildHeaders]);
+  }, [isOnline, isHost, onlineRoom, onlineWord, customApiKey, showErrorNotice]);
 
   // Play sound & record winner score in online mode when RESULT arrives
   useEffect(() => {
@@ -421,33 +459,51 @@ export function WordChainGame({
     }
 
     try {
-      const response = await fetch('/api/game/start', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({
-          mode: selectedMode,
-          customWord: selectedMode === 'setter' ? customWord : undefined,
-        }),
-      });
-
-      const data = (await response.json()) as Partial<StartGameResponse> & { error?: string };
-      if (!response.ok || !data.sessionId) {
-        throw new Error(data.error || '게임을 시작하지 못했습니다.');
+      const apiKey = resolveStoredApiKey(customApiKey);
+      if (!apiKey) {
+        throw new Error(
+          "Gemini API 키가 등록되지 않았습니다. 상단의 'API 미등록' 버튼을 눌러 개인 API 키를 먼저 등록해 주세요.",
+        );
       }
 
+      let targetWord = '';
+      if (selectedMode === 'setter') {
+        const rawCustom = sanitizeDisplayWord(customWord ?? '');
+        if (!rawCustom) {
+          throw new Error('정답 단어를 입력해주세요.');
+        }
+        if (rawCustom.length > 20) {
+          throw new Error('정답 단어는 20자 이내로 입력해주세요.');
+        }
+        targetWord = rawCustom;
+      } else {
+        targetWord = await generateSoloKoreanNoun(apiKey);
+      }
+
+      const newSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      localSessionRef.current = {
+        mode: selectedMode,
+        targetWord,
+        targetNormalized: normalizeWord(targetWord),
+        hintCount: 0,
+        answerAttempts: 0,
+        hintsByNormalized: new Map(),
+        finished: false,
+      };
+
       resetRoundState();
-      setSessionId(data.sessionId);
-      setMode(data.mode ?? selectedMode);
-      setMaskedCount(data.maskedCount ?? 4);
+      setSessionId(newSessionId);
+      setMode(selectedMode);
+      setMaskedCount(Math.max(2, Math.min(8, targetWord.length)));
       setPhase('PLAYING');
 
       window.setTimeout(() => {
         hintInputRef.current?.focus();
       }, 60);
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : '게임을 시작하는 중 오류가 발생했습니다.',
-      );
+      const msg =
+        error instanceof Error ? error.message : '게임을 시작하는 중 오류가 발생했습니다.';
+      showErrorNotice(msg);
     } finally {
       setIsStartingSolo(false);
       setIsStartingSetter(false);
@@ -456,6 +512,7 @@ export function WordChainGame({
 
   const handleReturnToTitle = () => {
     resetRoundState();
+    localSessionRef.current = null;
     setSessionId(null);
     setPhase('TITLE');
   };
@@ -478,7 +535,7 @@ export function WordChainGame({
 
   const handleHintSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const word = hintInput.trim();
+    const word = sanitizeDisplayWord(hintInput);
     if (!word) return;
 
     if (isOnline) {
@@ -488,47 +545,71 @@ export function WordChainGame({
       return;
     }
 
-    if (!sessionId || isSubmittingHint || isPaused) return;
+    const session = localSessionRef.current;
+    if (!sessionId || !session || session.finished || isSubmittingHint || isPaused) return;
+
+    if (word.length > 25) {
+      showErrorNotice('힌트 단어는 25자 이내로 입력해주세요.');
+      return;
+    }
 
     setErrorMessage(null);
     setAlreadyTriedNotice(null);
     setIsSubmittingHint(true);
 
     try {
-      const response = await fetch('/api/game/hint', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({ sessionId, word }),
-      });
-
-      const data = (await response.json()) as Partial<SubmitHintResponse> & { error?: string };
-      if (!response.ok || !data.hint) {
-        throw new Error(data.error || '유사도를 계산하지 못했습니다.');
+      const normalized = normalizeWord(word);
+      const existing = session.hintsByNormalized.get(normalized);
+      if (existing) {
+        setLatestHintId(existing.id);
+        setAlreadyTriedNotice(`'${existing.word}'은(는) 이미 입력한 힌트입니다.`);
+        setHintInput('');
+        hintInputRef.current?.focus();
+        return;
       }
 
-      const returnedHint = data.hint;
-      setHintCount(data.hintCount ?? hintCount);
-      setAnswerAttempts(data.answerAttempts ?? answerAttempts);
+      const isExactMatch = normalized === session.targetNormalized;
+      let similarity = 100;
+      let reason = '정답 단어와 완전 일치';
+
+      if (!isExactMatch) {
+        const apiKey = resolveStoredApiKey(customApiKey);
+        const rubricResult = await scoreHintWithRubric(session.targetWord, word, apiKey);
+        similarity = rubricResult.score;
+        reason = rubricResult.reason;
+      }
+
+      session.hintCount += 1;
+      const returnedHint: HintEntry = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        word,
+        similarity,
+        rawCosine: Math.round((similarity / 100) * 1000) / 1000,
+        reason,
+        order: session.hintCount,
+        isExactMatch,
+      };
+      session.hintsByNormalized.set(normalized, returnedHint);
+
+      setHintCount(session.hintCount);
+      setAnswerAttempts(session.answerAttempts);
       setLatestHintId(returnedHint.id);
-
-      if (data.alreadyTried) {
-        setAlreadyTriedNotice(`'${returnedHint.word}'은(는) 이미 입력한 힌트입니다.`);
-      } else {
-        setHints((prev) => [...prev, returnedHint]);
-        soundEngine.playHintResult(returnedHint.similarity);
-      }
+      setHints((prev) => [...prev, returnedHint]);
+      void soundEngine.playHintResult(returnedHint.similarity);
 
       setHintInput('');
       hintInputRef.current?.focus();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '유사도 계산 중 오류가 발생했습니다.');
+      const msg =
+        error instanceof Error ? error.message : '유사도 계산 중 오류가 발생했습니다.';
+      showErrorNotice(msg);
     } finally {
       setIsSubmittingHint(false);
     }
   };
 
   const submitAnswerChallenge = async (candidateWord: string) => {
-    const word = candidateWord.trim();
+    const word = sanitizeDisplayWord(candidateWord);
     if (!word) return;
 
     if (isOnline) {
@@ -538,34 +619,29 @@ export function WordChainGame({
       return;
     }
 
-    if (!sessionId || isSubmittingGuess || isPaused) return;
+    const session = localSessionRef.current;
+    if (!sessionId || !session || session.finished || isSubmittingGuess || isPaused) return;
 
     setErrorMessage(null);
     setGuessFeedback(null);
     setIsSubmittingGuess(true);
 
     try {
-      const response = await fetch('/api/game/guess', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({ sessionId, word }),
-      });
+      session.answerAttempts += 1;
+      const isCorrect = normalizeWord(word) === session.targetNormalized;
+      const nextTotal = session.hintCount + session.answerAttempts;
 
-      const data = (await response.json()) as Partial<GuessAnswerResponse> & { error?: string };
-      if (!response.ok || typeof data.correct !== 'boolean') {
-        throw new Error(data.error || '정답 확인 중 오류가 발생했습니다.');
-      }
+      setHintCount(session.hintCount);
+      setAnswerAttempts(session.answerAttempts);
+      setTotalAttempts(nextTotal);
 
-      setHintCount(data.hintCount ?? hintCount);
-      setAnswerAttempts(data.answerAttempts ?? answerAttempts);
-      setTotalAttempts(data.totalAttempts ?? hintCount + answerAttempts);
-
-      if (data.correct && data.targetWord) {
-        soundEngine.playVictory();
-        setRevealedWord(data.targetWord);
+      if (isCorrect) {
+        session.finished = true;
+        void soundEngine.playVictory();
+        setRevealedWord(session.targetWord);
         setPhase('VICTORY');
       } else {
-        soundEngine.playWrongGuess();
+        void soundEngine.playWrongGuess();
         setWrongGuesses((prev) => (prev.includes(word) ? prev : [...prev, word]));
         setGuessFeedback(`'${word}'은(는) 정답이 아닙니다.`);
         setGuessInput('');
@@ -574,8 +650,6 @@ export function WordChainGame({
         window.setTimeout(() => setShakeGuess(false), 280);
         guessInputRef.current?.focus();
       }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '정답 확인 중 오류가 발생했습니다.');
     } finally {
       setIsSubmittingGuess(false);
     }
@@ -593,30 +667,19 @@ export function WordChainGame({
       return;
     }
 
-    if (!sessionId || isGivingUp) return;
+    const session = localSessionRef.current;
+    if (!sessionId || !session || isGivingUp) return;
     setErrorMessage(null);
     setIsGivingUp(true);
 
     try {
-      const response = await fetch('/api/game/give-up', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({ sessionId }),
-      });
-
-      const data = (await response.json()) as Partial<GiveUpResponse> & { error?: string };
-      if (!response.ok || !data.targetWord) {
-        throw new Error(data.error || '정답을 불러오지 못했습니다.');
-      }
-
-      setRevealedWord(data.targetWord);
-      setHintCount(data.hintCount ?? hintCount);
-      setAnswerAttempts(data.answerAttempts ?? answerAttempts);
-      setTotalAttempts(data.totalAttempts ?? hintCount + answerAttempts);
+      session.finished = true;
+      setRevealedWord(session.targetWord);
+      setHintCount(session.hintCount);
+      setAnswerAttempts(session.answerAttempts);
+      setTotalAttempts(session.hintCount + session.answerAttempts);
       setConfirmingGiveUp(false);
       setPhase('GAVE_UP');
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '정답 공개 중 오류가 발생했습니다.');
     } finally {
       setIsGivingUp(false);
     }
@@ -643,15 +706,25 @@ export function WordChainGame({
   // Online Preparing screen
   if (isOnline && (!onlineWord || onlineWord.phase === 'STARTING')) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+      <div className="flex h-full min-h-[60dvh] flex-col items-center justify-center gap-3 px-4 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-sky-400" aria-hidden="true" />
         <p className="text-base font-bold text-slate-100">
           방장({onlineRoom?.players?.[hostRole]?.nickname ?? hostRole})이 AI 단어를 출제하고 있습니다...
         </p>
         {onlineWord?.lastError && (
-          <p className="max-w-md rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
-            {onlineWord.lastError}
-          </p>
+          <div className="max-w-md space-y-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+            <p>{onlineWord.lastError}</p>
+            {isHost && (
+              <button
+                type="button"
+                onClick={() => void startOnlineHostMatch()}
+                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-sky-400 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-sky-300"
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>다시 출제 시도</span>
+              </button>
+            )}
+          </div>
         )}
         {onReturnToWaitingRoom && (
           <button
@@ -818,9 +891,27 @@ export function WordChainGame({
   const pendingOnlineCall = Boolean(isOnline && onlineWord?.pendingRequest);
   const displayError = isOnline ? (onlineWord?.lastError ?? errorMessage) : errorMessage;
 
+  const toastBanner = errorToast ? (
+    <div
+      role="alert"
+      className="fixed left-1/2 top-14 z-50 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-xl border border-rose-500/60 bg-[#1A1320]/95 px-4 py-2.5 text-xs font-semibold text-rose-200 shadow-2xl backdrop-blur-md"
+    >
+      <span>{errorToast}</span>
+      <button
+        type="button"
+        onClick={() => setErrorToast(null)}
+        className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-rose-300 hover:bg-rose-500/20"
+      >
+        닫기
+      </button>
+    </div>
+  ) : null;
+
   return (
-    <GameBoardLayout
-      scrollableMain
+    <>
+      {toastBanner}
+      <GameBoardLayout
+        scrollableMain
       onlineReactionBar={onlineReactionBar}
       topBar={
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4">
@@ -1246,5 +1337,6 @@ export function WordChainGame({
         </div>
       }
     />
+    </>
   );
 }

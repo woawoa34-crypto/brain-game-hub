@@ -159,7 +159,7 @@ export function OnlineLobbyPanel({
     };
 
     return (
-      <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto sm:gap-3 sm:overflow-hidden">
+      <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pb-4 min-[680px]:h-full min-[680px]:gap-3 min-[680px]:overflow-hidden min-[680px]:pb-0">
         {/* Toast for Invite Link Copy */}
         {copiedLink && (
           <div
@@ -484,7 +484,7 @@ export function OnlineLobbyPanel({
 
   // Create or Join Room Screen
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2.5 overflow-y-auto sm:justify-center sm:gap-4 sm:overflow-hidden">
+    <div className="flex min-h-0 flex-col gap-2.5 overflow-y-auto pb-4 min-[680px]:h-full min-[680px]:justify-center min-[680px]:gap-4 min-[680px]:overflow-hidden min-[680px]:pb-0">
       {/* Nickname Input */}
       <div className="mx-auto w-full max-w-2xl rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4">
         <label

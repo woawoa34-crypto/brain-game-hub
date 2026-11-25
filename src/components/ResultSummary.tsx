@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Copy, RotateCcw, Sparkles, Trophy } from 'lucide-react';
+import { Check, Copy, Home, RotateCcw, Sparkles, Trophy } from 'lucide-react';
 import { HintRow } from './HintRow';
 import type { GameMode, HintEntry } from '../types';
 
@@ -12,9 +12,17 @@ interface ResultSummaryProps {
   totalAttempts: number;
   sortedHints: HintEntry[];
   wrongGuesses: string[];
-  isStartingSolo: boolean;
-  onPlaySoloAgain: () => void;
-  onReturnToTitle: () => void;
+  isStartingSolo?: boolean;
+  onPlaySoloAgain?: () => void;
+  onReturnToTitle?: () => void;
+  // Optional online multiplayer controls
+  isOnline?: boolean;
+  isHost?: boolean;
+  hostNickname?: string;
+  winnerName?: string | null;
+  isRematching?: boolean;
+  onOnlineRematch?: () => void;
+  onReturnToWaitingRoom?: () => void;
 }
 
 export function ResultSummary({
@@ -26,22 +34,37 @@ export function ResultSummary({
   totalAttempts,
   sortedHints,
   wrongGuesses,
-  isStartingSolo,
+  isStartingSolo = false,
   onPlaySoloAgain,
   onReturnToTitle,
+  isOnline = false,
+  isHost = false,
+  hostNickname = '방장',
+  winnerName = null,
+  isRematching = false,
+  onOnlineRematch,
+  onReturnToWaitingRoom,
 }: ResultSummaryProps) {
   const [copied, setCopied] = useState(false);
 
   const bestHint = sortedHints[0];
 
   const handleCopySummary = async () => {
-    const modeLabel = mode === 'solo' ? '솔로 플레이' : '출제자 모드';
+    const modeLabel = isOnline
+      ? '온라인 1:1 대전'
+      : mode === 'solo'
+        ? '솔로 플레이'
+        : '출제자 모드';
     const topHintLine = bestHint
       ? `최고 유사 힌트: ${bestHint.word} (${bestHint.similarity.toFixed(1)}%)`
       : '힌트 없이 바로 도전';
-    const statusLine = won
-      ? `말결 정답 성공 (${modeLabel})`
-      : `말결 도전 기록 (${modeLabel})`;
+    const statusLine = isOnline
+      ? winnerName
+        ? `말결 온라인 승리: ${winnerName}`
+        : `말결 온라인 종료`
+      : won
+        ? `말결 정답 성공 (${modeLabel})`
+        : `말결 도전 기록 (${modeLabel})`;
     const text = [
       statusLine,
       `정답: ${targetWord}`,
@@ -65,21 +88,29 @@ export function ResultSummary({
           <div>
             <div
               className={`flex items-center gap-2 text-xs font-semibold ${
-                won ? 'text-emerald-400' : 'text-slate-400'
+                won || winnerName ? 'text-emerald-400' : 'text-slate-400'
               }`}
             >
-              {won && <Trophy className="h-4 w-4 shrink-0" aria-hidden="true" />}
-              <span>{won ? '정답을 맞혔습니다' : '정답을 공개했습니다'}</span>
+              {(won || winnerName) && <Trophy className="h-4 w-4 shrink-0" aria-hidden="true" />}
+              <span>
+                {isOnline
+                  ? winnerName
+                    ? `${winnerName}님이 정답을 맞혀 승리했습니다!`
+                    : '정답을 공개하며 대결이 종료되었습니다'
+                  : won
+                    ? '정답을 맞혔습니다'
+                    : '정답을 공개했습니다'}
+              </span>
               <span aria-hidden="true" className="text-slate-600">·</span>
               <span className="text-slate-400">
-                {mode === 'solo' ? '솔로 플레이' : '출제자 모드'}
+                {isOnline ? '온라인 대전' : mode === 'solo' ? '솔로 플레이' : '출제자 모드'}
               </span>
             </div>
 
             <div className="mt-3 flex items-baseline gap-3">
               <span className="text-xs font-medium text-slate-400">정답 단어</span>
               <h1 className="text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl">
-                {targetWord}
+                {targetWord || '—'}
               </h1>
             </div>
           </div>
@@ -103,26 +134,63 @@ export function ResultSummary({
               )}
             </button>
 
-            <button
-              type="button"
-              disabled={isStartingSolo}
-              onClick={onPlaySoloAgain}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-400 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-sky-300 focus-visible:outline-2 focus-visible:outline-sky-400 disabled:opacity-60 whitespace-nowrap shrink-0"
-            >
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              <span>{isStartingSolo ? '준비 중...' : '솔로 바로 다시하기'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onReturnToTitle}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap shrink-0"
-            >
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              <span>모드 선택</span>
-            </button>
+            {isOnline ? (
+              <>
+                {isHost && onOnlineRematch && (
+                  <button
+                    type="button"
+                    disabled={isRematching}
+                    onClick={onOnlineRematch}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-400 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-sky-300 focus-visible:outline-2 focus-visible:outline-sky-400 disabled:opacity-60 whitespace-nowrap shrink-0"
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    <span>{isRematching ? '준비 중...' : '같은 게임 바로 재대결'}</span>
+                  </button>
+                )}
+                {onReturnToWaitingRoom && (
+                  <button
+                    type="button"
+                    onClick={onReturnToWaitingRoom}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap shrink-0"
+                  >
+                    <Home className="h-4 w-4" aria-hidden="true" />
+                    <span>대기실로 돌아가기</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                {onPlaySoloAgain && (
+                  <button
+                    type="button"
+                    disabled={isStartingSolo}
+                    onClick={onPlaySoloAgain}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-400 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-sky-300 focus-visible:outline-2 focus-visible:outline-sky-400 disabled:opacity-60 whitespace-nowrap shrink-0"
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    <span>{isStartingSolo ? '준비 중...' : '솔로 바로 다시하기'}</span>
+                  </button>
+                )}
+                {onReturnToTitle && (
+                  <button
+                    type="button"
+                    onClick={onReturnToTitle}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap shrink-0"
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    <span>모드 선택</span>
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
+
+        {isOnline && !isHost && (
+          <p className="mt-3 text-xs text-slate-400">
+            방장({hostNickname})이 재대결 또는 대기실 복귀를 선택할 수 있습니다.
+          </p>
+        )}
 
         {/* Clean unboxed KPI row */}
         <dl className="mt-7 grid grid-cols-2 gap-4 border-t border-slate-800 pt-6 sm:grid-cols-4">

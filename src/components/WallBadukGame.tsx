@@ -189,6 +189,16 @@ export function WallBadukGame({
 
   const timeoutGuardRef = useRef<boolean>(false);
   const initializedRoundRef = useRef<number | null>(null);
+  const prevTurnAlertKeyRef = useRef<string | null>(null);
+  const playedVictoryKeyRef = useRef<string | null>(null);
+
+  // Reset transient local selection UI whenever a new online matchNumber starts
+  useEffect(() => {
+    if (!isOnline) return;
+    setSelectedPieceId(null);
+    setWallBreakActive(false);
+    setChosenShape('square');
+  }, [isOnline, matchNumber]);
 
   // Host initializes online WallBaduk match state in RTDB
   useEffect(() => {
@@ -478,19 +488,29 @@ export function WallBadukGame({
     return calculateScores(effectivePlayers, effectivePieces, boardAnalysis);
   }, [effectivePhase, effectivePlayers, effectivePieces, boardAnalysis]);
 
-  // Record cumulative score once when online match reaches RESULT
+  // Record cumulative score & play victory sound once when online match reaches RESULT
   useEffect(() => {
     if (!isOnline || !onlineRoom || effectivePhase !== 'RESULT') return;
+    const resultKey = `WALLBADUK_GAME_${matchNumber}`;
     const winners = finalScores.filter((s) => s.isWinner);
+    const myPlayerId = myRole === 'P2' ? 2 : 1;
+    if (playedVictoryKeyRef.current !== resultKey) {
+      playedVictoryKeyRef.current = resultKey;
+      if (winners.some((w) => w.playerId === myPlayerId)) {
+        soundEngine.playVictory();
+      } else {
+        soundEngine.playError();
+      }
+    }
     if (winners.length === 1) {
       const winnerRole: OnlineRole = winners[0].playerId === 2 ? 'P2' : 'P1';
       void recordMatchWinnerScore(
         onlineRoom.roomCode,
         winnerRole,
-        `WALLBADUK_GAME_${matchNumber}`,
+        resultKey,
       );
     }
-  }, [isOnline, onlineRoom, effectivePhase, finalScores, matchNumber]);
+  }, [isOnline, onlineRoom, effectivePhase, finalScores, matchNumber, myRole]);
 
   // Complete a turn after walls and pieces are finalized
   const finalizeTurnAndAdvance = useCallback(
@@ -636,7 +656,7 @@ export function WallBadukGame({
       };
 
       const nextPieces = [...effectivePieces, newPiece];
-      soundEngine.playSelect();
+      soundEngine.playPlace();
 
       if (effectivePlacementStep + 1 < effectivePlacementSeq.length) {
         if (isOnline && onlineRoom) {
@@ -729,7 +749,7 @@ export function WallBadukGame({
         setLastBrokenWallKey(null);
       }
 
-      soundEngine.playSelect();
+      soundEngine.playPlace();
 
       const availableEdges = getEmptyEdgesForCell(move.r, move.c, nextWalls);
       if (availableEdges.length === 0) {
@@ -798,7 +818,7 @@ export function WallBadukGame({
       if (!isOnline) {
         setLastPlacedWallKey(wallKey);
       }
-      soundEngine.playHintResult(85);
+      soundEngine.playPlace();
       finalizeTurnAndAdvance(
         effectivePieces,
         nextWalls,
@@ -840,7 +860,7 @@ export function WallBadukGame({
 
       // Clicking own piece selects/deselects it
       if (clickedOccupant && clickedOccupant.playerId === currentPlayer.id) {
-        soundEngine.playSelect();
+        soundEngine.playClick();
         if (selectedPieceId === clickedOccupant.id) {
           setSelectedPieceId(null);
         } else {
@@ -1011,6 +1031,35 @@ export function WallBadukGame({
     finalizeTurnAndAdvance,
   ]);
 
+  // Turn alert sound when my turn begins (online & local human turns)
+  useEffect(() => {
+    if (effectivePhase !== 'PLACEMENT' && effectivePhase !== 'PLAYING') {
+      prevTurnAlertKeyRef.current = null;
+      return;
+    }
+    if (!currentPlayer || currentPlayer.isAI) return;
+    if (isOnline && !isMyOnlineTurn) {
+      prevTurnAlertKeyRef.current = null;
+      return;
+    }
+    const key = isOnline
+      ? `${matchNumber}:${effectivePhase}:${effectivePlacementStep}:${effectiveTurnIndex}:${effectiveTurnCount}`
+      : `local:${effectivePhase}:${effectivePlacementStep}:${effectiveTurnIndex}:${effectiveTurnCount}`;
+    if (prevTurnAlertKeyRef.current !== key) {
+      prevTurnAlertKeyRef.current = key;
+      soundEngine.playTurnAlert();
+    }
+  }, [
+    effectivePhase,
+    currentPlayer,
+    isOnline,
+    isMyOnlineTurn,
+    matchNumber,
+    effectivePlacementStep,
+    effectiveTurnIndex,
+    effectiveTurnCount,
+  ]);
+
   // Countdown timer (90s local / 45s online shot clock, freezes on Pause)
   useEffect(() => {
     if (effectivePhase !== 'PLACEMENT' && effectivePhase !== 'PLAYING') return;
@@ -1019,6 +1068,10 @@ export function WallBadukGame({
 
     const timer = window.setInterval(() => {
       setTimeLeft((prev) => {
+        const next = prev - 1;
+        if (next >= 1 && next <= 5) {
+          soundEngine.playTick();
+        }
         if (prev <= 1) {
           if (!timeoutGuardRef.current && (!isOnline || isMyOnlineTurn)) {
             timeoutGuardRef.current = true;
@@ -1026,7 +1079,7 @@ export function WallBadukGame({
           }
           return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 

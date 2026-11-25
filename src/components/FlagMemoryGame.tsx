@@ -61,7 +61,7 @@ function FlagImage({
   if (failed) {
     return (
       <div
-        className={`flex h-full w-full flex-col items-center justify-center bg-slate-800 text-slate-300 ${className}`}
+        className={`flex aspect-[3/2] max-h-full w-full flex-col items-center justify-center rounded bg-slate-800 text-slate-300 ${className}`}
       >
         <span className="font-mono text-xs font-bold uppercase">{country.code}</span>
         <span className="mt-0.5 text-[10px] text-slate-400">{country.nameKo}</span>
@@ -70,15 +70,17 @@ function FlagImage({
   }
 
   return (
-    <img
-      src={getFlagImageUrl(country.code)}
-      alt={`${country.nameKo} 국기`}
-      referrerPolicy="no-referrer"
-      loading="eager"
-      decoding="async"
-      onError={() => setFailed(true)}
-      className={`h-full w-full object-cover ${className}`}
-    />
+    <div className={`flex aspect-[3/2] max-h-full w-full items-center justify-center ${className}`}>
+      <img
+        src={getFlagImageUrl(country.code)}
+        alt={`${country.nameKo} 국기`}
+        referrerPolicy="no-referrer"
+        loading="eager"
+        decoding="async"
+        onError={() => setFailed(true)}
+        className="h-full w-full object-contain"
+      />
+    </div>
   );
 }
 
@@ -673,8 +675,8 @@ export function FlagMemoryGame({
         }
         mainStage={
           phase === 'EXPOSURE' && activeExposureFlag ? (
-            <div className="flex h-full w-full items-center justify-center rounded-2xl border border-slate-800 bg-[#131926] p-4 sm:p-6">
-              <div className="aspect-[3/2] max-h-full w-full max-w-md overflow-hidden rounded-xl border-2 border-slate-700/80 bg-[#0B0F17] shadow-xl">
+            <div className="flex h-full w-full max-w-full items-center justify-center rounded-2xl border border-slate-800 bg-[#131926] p-3 sm:p-6">
+              <div className="flex aspect-[3/2] max-h-full w-full max-w-md items-center justify-center rounded-xl border-2 border-slate-700/80 bg-[#0B0F17] p-1.5 shadow-xl">
                 <FlagImage
                   key={`${currentCycle}-${activeExposureFlag.code}`}
                   country={activeExposureFlag}
@@ -682,9 +684,9 @@ export function FlagMemoryGame({
               </div>
             </div>
           ) : phase === 'RECALL' ? (
-            <SquareBoardBox maxPx={620}>
+            <SquareBoardBox maxPx={620} className="w-full max-w-full">
               <div
-                className="grid h-full w-full grid-cols-5 grid-rows-5 gap-1.5 rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:gap-2 sm:p-3"
+                className="grid h-full w-full max-w-full grid-cols-5 grid-rows-5 gap-1.5 rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:gap-2 sm:p-3"
                 role="group"
                 aria-label="5x5 국기 선택 배열"
               >
@@ -701,7 +703,7 @@ export function FlagMemoryGame({
                       disabled={disabled}
                       aria-pressed={isSelected}
                       aria-label={`국기 선택 ${isSelected ? '(선택됨)' : ''}`}
-                      className={`relative h-full w-full overflow-hidden rounded-lg border-2 bg-[#0B0F17] transition-all duration-150 focus-visible:outline-2 focus-visible:outline-sky-400 ${
+                      className={`relative flex h-full w-full items-center justify-center rounded-lg border-2 bg-[#0B0F17] p-1.5 transition-all duration-150 focus-visible:outline-2 focus-visible:outline-sky-400 ${
                         isSelected
                           ? 'border-sky-400 ring-2 ring-sky-400/40 scale-[0.97]'
                           : disabled
@@ -721,9 +723,9 @@ export function FlagMemoryGame({
               </div>
             </SquareBoardBox>
           ) : (
-            <SquareBoardBox maxPx={620}>
+            <SquareBoardBox maxPx={620} className="w-full max-w-full">
               <div
-                className="grid h-full w-full grid-cols-5 grid-rows-5 gap-1 rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:gap-1.5 sm:p-3"
+                className="grid h-full w-full max-w-full grid-cols-5 grid-rows-5 gap-1 rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:gap-1.5 sm:p-3"
                 aria-label="5x5 국기 채점 결과 배열"
               >
                 {gridFlags.map((flag) => {
@@ -765,10 +767,10 @@ export function FlagMemoryGame({
                   return (
                     <div
                       key={flag.code}
-                      className={`relative h-full w-full overflow-hidden rounded-lg border-2 ${cardStyle}`}
+                      className={`relative flex h-full w-full items-center justify-center rounded-lg border-2 p-1.5 ${cardStyle}`}
                     >
                       <FlagImage country={flag} />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-1 pb-0.5 pt-2 text-center">
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-md bg-gradient-to-t from-black/85 via-black/55 to-transparent px-1 pb-0.5 pt-2 text-center">
                         <span className="block truncate text-[9px] font-semibold text-slate-100 sm:text-[10px]">
                           {flag.nameKo}
                         </span>
@@ -984,7 +986,7 @@ export function FlagMemoryGame({
                         <span className="hidden w-4 shrink-0 font-mono text-[10px] font-bold tabular-nums text-slate-500 sm:inline">
                           {idx + 1}
                         </span>
-                        <div className="relative h-5 w-7.5 shrink-0 overflow-hidden rounded-[3px] border border-slate-700/70 bg-slate-900 sm:h-5.5 sm:w-8">
+                        <div className="relative flex aspect-[3/2] w-8 shrink-0 items-center justify-center rounded-[3px] border border-slate-700/70 bg-slate-900 p-0.5 sm:w-9">
                           <FlagImage country={flag} />
                           <span className="absolute left-0 top-0 rounded-br bg-black/75 px-0.5 font-mono text-[8px] font-bold leading-tight text-slate-200 sm:hidden">
                             {idx + 1}

@@ -139,6 +139,15 @@ export function BlindMazeGame({
 
   const initializedRoundRef = useRef<number | null>(null);
   const shotClockGuardRef = useRef<boolean>(false);
+  const prevTurnAlertRef = useRef<boolean>(false);
+  const playedVictoryKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isOnline) return;
+    setGaveUp(false);
+    setCollisionFlash(false);
+    setCollisionNotice(null);
+  }, [isOnline, matchNumber]);
 
   // Host initializes online BlindMaze state in RTDB
   useEffect(() => {
@@ -281,9 +290,14 @@ export function BlindMazeGame({
       last = now;
       setMemorizeLeftMs((prev) => {
         const remain = Math.max(0, prev - delta);
+        const prevSec = Math.ceil(prev / 1000);
+        const nextSec = Math.ceil(remain / 1000);
+        if (remain > 0 && nextSec !== prevSec && nextSec <= 5) {
+          soundEngine.playTick();
+        }
         if (remain <= 0) {
           window.clearInterval(timer);
-          soundEngine.playTick();
+          soundEngine.playTurnAlert();
           if (isOnline) {
             if (isHost && onlineRoom) {
               void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'blindMaze'), {
@@ -316,6 +330,18 @@ export function BlindMazeGame({
     return () => window.clearInterval(timer);
   }, [isOnline, effectivePhase, mode, isPaused]);
 
+  // Turn alert sound when my online turn begins
+  useEffect(() => {
+    if (!isOnline || effectivePhase !== 'EXPLORE') {
+      prevTurnAlertRef.current = false;
+      return;
+    }
+    if (isMyOnlineTurn && !prevTurnAlertRef.current) {
+      soundEngine.playTurnAlert();
+    }
+    prevTurnAlertRef.current = isMyOnlineTurn;
+  }, [isOnline, effectivePhase, isMyOnlineTurn]);
+
   // Online 45s shot clock reset per turn
   const onlineTurnSyncKey = isOnline && onlineMaze
     ? `${onlineMaze.roundKey}:${onlineMaze.phase}:${onlineMaze.activeTurn}:${onlineMaze.explorers?.[0]?.steps ?? 0}:${onlineMaze.explorers?.[1]?.steps ?? 0}`
@@ -327,12 +353,16 @@ export function BlindMazeGame({
     shotClockGuardRef.current = false;
   }, [isOnline, onlineTurnSyncKey]);
 
-  // Online 45s turn countdown & auto-pass
+  // Online 45s turn countdown & auto-pass (freezes on Pause)
   useEffect(() => {
     if (!isOnline || !onlineRoom || effectivePhase !== 'EXPLORE' || isPaused) return;
 
     const timer = window.setInterval(() => {
       setShotClock((prev) => {
+        const next = prev - 1;
+        if (next >= 1 && next <= 5) {
+          soundEngine.playTick();
+        }
         if (prev <= 1) {
           if (isMyOnlineTurn && !shotClockGuardRef.current && myRole) {
             shotClockGuardRef.current = true;
@@ -345,33 +375,39 @@ export function BlindMazeGame({
           }
           return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 
     return () => window.clearInterval(timer);
   }, [isOnline, onlineRoom, effectivePhase, isPaused, isMyOnlineTurn, myRole]);
 
-  // Record cumulative room win on RESULT
+  // Record cumulative room win & play result sound on RESULT
   useEffect(() => {
     if (!isOnline || !onlineRoom || effectivePhase !== 'RESULT' || !effectiveWinnerId) return;
     const winnerRole: OnlineRole = effectiveWinnerId === 2 ? 'P2' : 'P1';
+    const key = `BLINDMAZE_GAME_${matchNumber}`;
+    if (playedVictoryKeyRef.current !== key) {
+      playedVictoryKeyRef.current = key;
+      if (winnerRole === myRole) {
+        soundEngine.playVictory();
+      } else {
+        soundEngine.playError();
+      }
+    }
     void recordMatchWinnerScore(
       onlineRoom.roomCode,
       winnerRole,
-      `BLINDMAZE_GAME_${matchNumber}`,
+      key,
     );
-  }, [isOnline, onlineRoom, effectivePhase, effectiveWinnerId, matchNumber]);
+  }, [isOnline, onlineRoom, effectivePhase, effectiveWinnerId, matchNumber, myRole]);
 
   const activeExplorer =
     effectiveExplorers[effectiveActiveTurnIdx] ?? effectiveExplorers[0] ?? null;
 
   const triggerCollisionFeedback = useCallback(
     (playerName: string, targetDir: CardinalDir) => {
-      soundEngine.playWrongGuess();
-      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-        navigator.vibrate(120);
-      }
+      soundEngine.playBump();
       setCollisionFlash(false);
       window.requestAnimationFrame(() => setCollisionFlash(true));
       window.setTimeout(() => setCollisionFlash(false), 320);
@@ -416,7 +452,7 @@ export function BlindMazeGame({
         const { dr, dc } = getForwardDelta(targetDir);
         const nr = exp.r + dr;
         const nc = exp.c + dc;
-        soundEngine.playTick();
+        soundEngine.playClick();
 
         if (nr === effectiveMaze.exit.r && nc === effectiveMaze.exit.c) {
           reachedExit = true;
