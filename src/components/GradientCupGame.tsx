@@ -961,8 +961,8 @@ export function GradientCupGame({
   if (isOnline && !onlineCup) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" aria-hidden="true" />
-        <p className="text-sm font-bold text-slate-100">
+        <Loader2 className="h-8 w-8 animate-spin text-[#6B61FF]" aria-hidden="true" />
+        <p className="text-sm font-extrabold text-white">
           7개의 컵 심리전 온라인 방을 준비하는 중입니다...
         </p>
       </div>
@@ -985,34 +985,34 @@ export function GradientCupGame({
             <button
               type="button"
               onClick={onBackToLobby}
-              className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] px-3 py-1.5 text-xs font-extrabold text-white shadow-[0_3px_0_#15132d] transition-all hover:border-[#FFD21E] hover:text-[#FFD21E] active:translate-y-[1px] focus-visible:outline-2 focus-visible:outline-[#FFD21E] whitespace-nowrap"
             >
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               <span>로비로 돌아가기</span>
             </button>
 
-            <span className="text-xs text-slate-500">
+            <span className="rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] px-2.5 py-1 text-xs font-extrabold text-[#FFD21E]">
               7개의 컵 · 대칭 그라데이션 심리전
             </span>
           </div>
 
           <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
             <section className="text-center">
-              <p className="text-xs font-medium text-cyan-300">
-                게임 5 · 그라데이션 컵 심리전
+              <p className="font-mono text-xs font-extrabold tracking-widest text-[#FF61D2]">
+                GAME 05 · 그라데이션 컵 심리전
               </p>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl [text-wrap:balance]">
-                7개의 컵 심리전
+              <h1 className="arcade-hero-title mt-2 -rotate-1 text-4xl tracking-tight text-white sm:text-5xl [text-wrap:balance]">
+                7개의 컵 <span className="text-[#FFD21E]">심리전</span>
               </h1>
-              <p className="mt-2.5 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
+              <p className="mt-2.5 text-sm leading-relaxed text-white/75 [text-wrap:balance]">
                 양 끝(1·7번)이 가장 짙고 가운데(4번)가 가장 옅은 대칭 색상의 7개 컵에
                 0~9 숫자를 오름차순(합계 30 이하)으로 숨긴 뒤, 컵의 색상만 보고 상대의 숫자를 추리하세요.
               </p>
             </section>
 
             {/* Symmetrical Cup Color Preview */}
-            <section className="mt-6 rounded-2xl border border-slate-800 bg-[#131926] p-4 sm:p-5">
-              <p className="text-center text-xs font-medium text-slate-400">
+            <section className="arcade-panel mt-6 rounded-3xl p-4 sm:p-5">
+              <p className="text-center text-xs font-extrabold text-[#FFD21E]">
                 대칭 컵 색상 구조 (1·7번 동일 · 2·6번 동일 · 3·5번 동일)
               </p>
               <div className="mt-3.5 flex items-end justify-center gap-1.5 sm:gap-3">
@@ -1024,21 +1024,21 @@ export function GradientCupGame({
               </div>
             </section>
 
-            <section className="mt-5 space-y-5 rounded-2xl border border-slate-800 bg-[#131926] p-5 sm:p-6">
+            <section className="arcade-panel mt-5 space-y-5 rounded-3xl p-5 sm:p-6">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => handleModeSwitch('ai')}
-                  className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
+                  className={`flex items-start gap-3 rounded-2xl border-2 p-4 text-left transition-all ${
                     mode === 'ai'
-                      ? 'border-cyan-400 bg-cyan-500/12'
-                      : 'border-slate-800 bg-[#0B0F17] hover:border-slate-700'
+                      ? 'border-[#6B61FF] bg-[#6B61FF]/20 shadow-[0_4px_0_#433AB5]'
+                      : 'border-[#2B2857] bg-[#121026] hover:border-white/50'
                   }`}
                 >
-                  <Bot className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" />
+                  <Bot className="mt-0.5 h-4 w-4 shrink-0 text-[#6B61FF]" aria-hidden="true" />
                   <div>
-                    <p className="text-sm font-bold text-slate-100">1인 vs AI 봇</p>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                    <p className="text-sm font-black text-white">1인 vs AI 봇</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/75">
                       컵 색상 단서만으로 추리하는 AI 봇과 7라운드 심리전을 겨룹니다.
                     </p>
                   </div>
@@ -1047,16 +1047,16 @@ export function GradientCupGame({
                 <button
                   type="button"
                   onClick={() => handleModeSwitch('local')}
-                  className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
+                  className={`flex items-start gap-3 rounded-2xl border-2 p-4 text-left transition-all ${
                     mode === 'local'
-                      ? 'border-sky-400 bg-sky-500/12'
-                      : 'border-slate-800 bg-[#0B0F17] hover:border-slate-700'
+                      ? 'border-[#FFD21E] bg-[#FFD21E]/15 shadow-[0_4px_0_#9E7D00]'
+                      : 'border-[#2B2857] bg-[#121026] hover:border-white/50'
                   }`}
                 >
-                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" aria-hidden="true" />
+                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-[#FFD21E]" aria-hidden="true" />
                   <div>
-                    <p className="text-sm font-bold text-slate-100">2인 로컬 대전</p>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                    <p className="text-sm font-black text-white">2인 로컬 대전</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/75">
                       한 기기에서 가림막(화면 넘기기)을 통해 서로의 숫자를 감추며 대결합니다.
                     </p>
                   </div>
@@ -1065,7 +1065,7 @@ export function GradientCupGame({
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="cup-p1-name" className="text-xs text-slate-400">
+                  <label htmlFor="cup-p1-name" className="text-xs font-bold text-white/80">
                     플레이어 1 이름
                   </label>
                   <input
@@ -1074,12 +1074,12 @@ export function GradientCupGame({
                     maxLength={14}
                     value={p1Name}
                     onChange={(e) => setP1Name(e.target.value)}
-                    className="mt-1.5 min-h-10 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] px-3 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none"
+                    className="mt-1.5 min-h-10 w-full rounded-2xl border-2 border-[#2B2857] bg-[#121026] px-3 py-2 text-sm text-white focus:border-[#6B61FF] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="cup-p2-name" className="text-xs text-slate-400">
+                  <label htmlFor="cup-p2-name" className="text-xs font-bold text-white/80">
                     {mode === 'ai' ? 'AI 상대 이름' : '플레이어 2 이름'}
                   </label>
                   <input
@@ -1088,7 +1088,7 @@ export function GradientCupGame({
                     maxLength={14}
                     value={p2Name}
                     onChange={(e) => setP2Name(e.target.value)}
-                    className="mt-1.5 min-h-10 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] px-3 py-2 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
+                    className="mt-1.5 min-h-10 w-full rounded-2xl border-2 border-[#2B2857] bg-[#121026] px-3 py-2 text-sm text-white focus:border-[#FFD21E] focus:outline-none"
                   />
                 </div>
               </div>
@@ -1096,7 +1096,7 @@ export function GradientCupGame({
               <button
                 type="button"
                 onClick={startNewGame}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-cyan-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 whitespace-nowrap"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#FFD21E] px-6 py-3 text-sm font-black text-[#121026] shadow-[0_5px_0_#9E7D00] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_3px_0_#9E7D00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFD21E] whitespace-nowrap"
               >
                 <Play className="h-4 w-4" aria-hidden="true" />
                 <span>숫자 배치 시작</span>
@@ -1110,29 +1110,29 @@ export function GradientCupGame({
       {effectivePhase === 'PLACEMENT' && (
         isOnline && mySetupReady ? (
           <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-            <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#131926] p-6 sm:p-7">
-              <Loader2 className="mx-auto h-9 w-9 animate-spin text-cyan-400" aria-hidden="true" />
-              <h2 className="mt-4 text-lg font-bold text-slate-100 sm:text-xl">
+            <div className="arcade-panel w-full max-w-md rounded-3xl p-6 sm:p-7">
+              <Loader2 className="mx-auto h-9 w-9 animate-spin text-[#6B61FF]" aria-hidden="true" />
+              <h2 className="mt-4 text-lg font-black text-[#FFD21E] sm:text-xl">
                 내 컵 배치가 완료되었습니다!
               </h2>
-              <p className="mt-2 text-xs text-slate-400 sm:text-sm">
+              <p className="mt-2 text-xs text-white/75 sm:text-sm">
                 상대방({myRole === 'P1' ? effectiveP2Name : effectiveP1Name})이 7개의 숫자를 배치하는 중입니다...
               </p>
               <div className="mt-5 grid grid-cols-2 gap-2.5 text-xs">
                 <div
-                  className={`rounded-xl border px-3 py-2 font-semibold ${
+                  className={`rounded-2xl border-2 px-3 py-2 font-extrabold ${
                     onlineCup?.setupReady?.P1
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                      : 'border-slate-800 bg-[#0B0F17] text-slate-400'
+                      ? 'border-[#6B61FF] bg-[#6B61FF]/20 text-white'
+                      : 'border-[#2B2857] bg-[#121026] text-white/70'
                   }`}
                 >
                   {effectiveP1Name}: {onlineCup?.setupReady?.P1 ? '배치 완료' : '배치 중'}
                 </div>
                 <div
-                  className={`rounded-xl border px-3 py-2 font-semibold ${
+                  className={`rounded-2xl border-2 px-3 py-2 font-extrabold ${
                     onlineCup?.setupReady?.P2
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                      : 'border-slate-800 bg-[#0B0F17] text-slate-400'
+                      ? 'border-[#6B61FF] bg-[#6B61FF]/20 text-white'
+                      : 'border-[#2B2857] bg-[#121026] text-white/70'
                   }`}
                 >
                   {effectiveP2Name}: {onlineCup?.setupReady?.P2 ? '배치 완료' : '배치 중'}
@@ -1144,21 +1144,21 @@ export function GradientCupGame({
           <GameBoardLayout
             onlineReactionBar={onlineReactionBar}
             topBar={
-              <div className="rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4 sm:py-2.5">
+              <div className="rounded-2xl border-2 border-[#2B2857] bg-[#1D1B3D] px-3 py-2 shadow-[0_3px_0_#15132d] sm:px-4 sm:py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     {!isOnline && (
                       <button
                         type="button"
                         onClick={() => setPhase('SETUP')}
-                        className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-slate-800 bg-[#0B0F17] px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
+                        className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2.5 py-1 text-xs font-extrabold text-white transition-all hover:border-[#FFD21E] hover:text-[#FFD21E] active:translate-y-[1px] whitespace-nowrap"
                       >
                         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                         <span className="hidden sm:inline">모드</span>
                       </button>
                     )}
                     <div className="min-w-0 truncate text-xs sm:text-sm">
-                      <span className="font-semibold text-cyan-300">
+                      <span className="font-black text-[#FFD21E]">
                         {isOnline
                           ? myRole === 'P1'
                             ? effectiveP1Name
@@ -1167,23 +1167,23 @@ export function GradientCupGame({
                             ? effectiveP1Name
                             : effectiveP2Name}
                       </span>
-                      <span aria-hidden="true" className="mx-1.5 text-slate-600">·</span>
-                      <span className="font-bold text-slate-100">
+                      <span aria-hidden="true" className="mx-1.5 text-white/35">·</span>
+                      <span className="font-extrabold text-white">
                         1~7번 컵 숫자 비밀 배치
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-800 bg-[#0B0F17] px-2.5 py-1">
+                  <div className="flex shrink-0 items-center gap-1.5 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2.5 py-1">
                     <Clock
                       className={`h-3.5 w-3.5 ${
-                        placementTimeLeft <= 30 ? 'text-rose-400' : 'text-cyan-300'
+                        placementTimeLeft <= 30 ? 'text-rose-400' : 'text-[#FFD21E]'
                       }`}
                       aria-hidden="true"
                     />
                     <span
-                      className={`font-mono text-sm font-bold tabular-nums sm:text-base ${
-                        placementTimeLeft <= 30 ? 'text-rose-400' : 'text-slate-100'
+                      className={`font-mono text-sm font-black tabular-nums sm:text-base ${
+                        placementTimeLeft <= 30 ? 'text-rose-400' : 'text-white'
                       }`}
                     >
                       {formatCountdown(placementTimeLeft)}
@@ -1193,7 +1193,7 @@ export function GradientCupGame({
               </div>
             }
             mainStage={
-              <div className="flex h-full min-h-0 flex-col justify-center gap-3 rounded-2xl border border-slate-800 bg-[#131926] p-3 sm:gap-5 sm:p-5">
+              <div className="arcade-panel flex h-full min-h-0 flex-col justify-center gap-3 rounded-3xl p-3 sm:gap-5 sm:p-5">
                 {/* 7 Cup Slots */}
                 <div className="grid grid-cols-7 gap-1 sm:gap-2.5">
                   {draftCups.map((val, idx) => {
@@ -1207,7 +1207,7 @@ export function GradientCupGame({
                           type="button"
                           disabled={isPaused}
                           onClick={() => setFocusedCupIdx(idx)}
-                          className={`relative flex aspect-[3/4] w-full flex-col items-center justify-center rounded-b-xl rounded-t-md border-2 transition-all focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:opacity-60 sm:rounded-b-2xl ${
+                          className={`relative flex aspect-[3/4] w-full flex-col items-center justify-center rounded-b-xl rounded-t-md border-2 transition-all focus-visible:outline-2 focus-visible:outline-[#FFD21E] disabled:opacity-60 sm:rounded-b-2xl ${
                             hasOrderError
                               ? 'ring-2 ring-rose-500'
                               : isFocused
@@ -1233,12 +1233,12 @@ export function GradientCupGame({
                             type="button"
                             disabled={isPaused}
                             onClick={() => handleClearCupSlot(idx)}
-                            className="text-[10px] text-slate-400 hover:text-rose-300 disabled:opacity-45 sm:text-[11px]"
+                            className="text-[10px] font-bold text-white/75 hover:text-[#FF61D2] disabled:opacity-45 sm:text-[11px]"
                           >
                             지우기
                           </button>
                         ) : (
-                          <span className="truncate text-[9px] text-slate-500 sm:text-[10px]">
+                          <span className="truncate text-[9px] text-white/60 sm:text-[10px]">
                             {color.badgeText}
                           </span>
                         )}
@@ -1248,22 +1248,22 @@ export function GradientCupGame({
                 </div>
 
                 {/* Real-time Sum Gauge + Rule Checklist */}
-                <div className="grid grid-cols-1 gap-2.5 rounded-xl border border-slate-800 bg-[#0B0F17] p-3 sm:grid-cols-2 sm:gap-4 sm:p-4">
+                <div className="grid grid-cols-1 gap-2.5 rounded-2xl border-2 border-[#2B2857] bg-[#121026] p-3 sm:grid-cols-2 sm:gap-4 sm:p-4">
                   <div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-300">7개 숫자 총합</span>
+                      <span className="font-extrabold text-white">7개 숫자 총합</span>
                       <span
-                        className={`font-mono text-sm font-bold tabular-nums ${
-                          validation.sumWithinLimit ? 'text-emerald-400' : 'text-rose-400'
+                        className={`font-mono text-sm font-black tabular-nums ${
+                          validation.sumWithinLimit ? 'text-[#FFD21E]' : 'text-rose-400'
                         }`}
                       >
                         {validation.sum} / 30
                       </span>
                     </div>
-                    <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                    <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full border border-[#2B2857] bg-[#1D1B3D]">
                       <div
-                        className={`h-full w-full origin-left rounded-full transition-transform duration-200 ${
-                          validation.sumWithinLimit ? 'bg-emerald-500' : 'bg-rose-500'
+                        className={`h-full w-full origin-left transition-transform duration-200 ${
+                          validation.sumWithinLimit ? 'bg-[#6B61FF]' : 'bg-rose-500'
                         }`}
                         style={{
                           transform: `scaleX(${Math.min(1, validation.sum / 30)})`,
@@ -1272,10 +1272,10 @@ export function GradientCupGame({
                     </div>
                   </div>
 
-                  <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] sm:flex-col sm:gap-1 sm:text-xs">
+                  <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold sm:flex-col sm:gap-1 sm:text-xs">
                     <li
                       className={`flex items-center gap-1 ${
-                        validation.allFilled ? 'text-emerald-400' : 'text-slate-400'
+                        validation.allFilled ? 'text-emerald-400' : 'text-white/65'
                       }`}
                     >
                       {validation.allFilled ? (
@@ -1314,9 +1314,9 @@ export function GradientCupGame({
               </div>
             }
             controlPanel={
-              <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4 space-y-2.5 sm:space-y-3.5">
+              <div className="arcade-panel rounded-2xl p-3 sm:rounded-3xl sm:p-4 space-y-2.5 sm:space-y-3.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-slate-200">
+                  <span className="text-xs font-black text-[#FFD21E]">
                     {focusedCupIdx + 1}번 컵 숫자 선택
                   </span>
                   <div className="flex items-center gap-1.5">
@@ -1324,7 +1324,7 @@ export function GradientCupGame({
                       type="button"
                       disabled={isPaused}
                       onClick={handleAutoRecommend}
-                      className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/20 disabled:opacity-45 whitespace-nowrap"
+                      className="inline-flex min-h-8 items-center gap-1 rounded-xl bg-[#6B61FF] px-2.5 py-1 text-[11px] font-extrabold text-white shadow-[0_3px_0_#433AB5] transition-all hover:brightness-110 active:translate-y-[1px] disabled:opacity-45 whitespace-nowrap"
                     >
                       <Sparkles className="h-3 w-3" aria-hidden="true" />
                       <span>자동 추천</span>
@@ -1336,7 +1336,7 @@ export function GradientCupGame({
                         setDraftCups(Array(7).fill(null));
                         setFocusedCupIdx(0);
                       }}
-                      className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:bg-slate-800 disabled:opacity-45 whitespace-nowrap"
+                      className="inline-flex min-h-8 items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2.5 py-1 text-[11px] font-bold text-white transition-colors hover:border-[#FFD21E] hover:text-[#FFD21E] disabled:opacity-45 whitespace-nowrap"
                     >
                       <Trash2 className="h-3 w-3" aria-hidden="true" />
                       <span>비우기</span>
@@ -1357,12 +1357,12 @@ export function GradientCupGame({
                         type="button"
                         disabled={disabled}
                         onClick={() => handlePickCubeDigit(digit)}
-                        className="flex min-h-11 flex-col items-center justify-center rounded-xl border border-slate-700 bg-[#0B0F17] py-1 transition-colors hover:border-cyan-400 hover:bg-cyan-500/10 focus-visible:outline-2 focus-visible:outline-cyan-400 disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-13"
+                        className="flex min-h-11 flex-col items-center justify-center rounded-2xl border-2 border-[#2B2857] bg-[#121026] py-1 shadow-[0_3px_0_#15132d] transition-all hover:border-[#FFD21E] hover:bg-[#FFD21E] active:translate-y-[1px] focus-visible:outline-2 focus-visible:outline-[#FFD21E] disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-13 group"
                       >
-                        <span className="font-mono text-base font-bold tabular-nums text-slate-100 sm:text-lg">
+                        <span className="font-mono text-base font-black tabular-nums text-white group-hover:text-[#121026] sm:text-lg">
                           {digit}
                         </span>
-                        <span className="font-mono text-[9px] text-slate-400 sm:text-[10px]">
+                        <span className="font-mono text-[9px] font-bold text-white/65 group-hover:text-[#121026]/80 sm:text-[10px]">
                           {remaining}/2
                         </span>
                       </button>
@@ -1374,7 +1374,7 @@ export function GradientCupGame({
                   type="button"
                   disabled={!validation.isValid || isPaused}
                   onClick={() => finalizeCurrentPlacement(draftCups as number[])}
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-2.5 text-xs font-bold text-slate-950 transition-colors hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 sm:min-h-12 sm:text-sm"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#FFD21E] px-5 py-2.5 text-xs font-black text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9E7D00] disabled:cursor-not-allowed disabled:border-2 disabled:border-[#2B2857] disabled:bg-[#121026] disabled:text-white/40 disabled:shadow-none sm:min-h-12 sm:text-sm"
                 >
                   <span>배치 완료</span>
                 </button>
@@ -1387,12 +1387,12 @@ export function GradientCupGame({
       {/* PRIVACY HANDOFF FOR P2 PLACEMENT (Local mode only) */}
       {!isOnline && phase === 'HANDOFF_TO_P2_PLACE' && (
         <div className="flex h-full items-center justify-center overflow-hidden p-4">
-          <section className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#131926] p-7 text-center">
-            <EyeOff className="mx-auto h-10 w-10 text-sky-400" aria-hidden="true" />
-            <h2 className="mt-4 text-xl font-bold text-slate-50 sm:text-2xl">
+          <section className="arcade-panel w-full max-w-md rounded-3xl p-7 text-center">
+            <EyeOff className="mx-auto h-10 w-10 text-[#6B61FF]" aria-hidden="true" />
+            <h2 className="mt-4 text-xl font-black text-[#FFD21E] sm:text-2xl">
               {effectiveP1Name}님의 배치가 완료되었습니다
             </h2>
-            <p className="mt-2.5 text-sm text-slate-400">
+            <p className="mt-2.5 text-sm text-white/75">
               이제 {effectiveP2Name}님에게 기기를 넘겨주세요. 상대가 배치한 숫자는 보이지 않습니다.
             </p>
             <button
@@ -1401,7 +1401,7 @@ export function GradientCupGame({
                 setPlacingPlayer(2);
                 setPhase('PLACEMENT');
               }}
-              className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-sky-400 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-sky-300"
+              className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#FFD21E] px-6 py-3 text-sm font-black text-[#121026] shadow-[0_5px_0_#9E7D00] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_3px_0_#9E7D00]"
             >
               <Eye className="h-4 w-4" aria-hidden="true" />
               <span>{effectiveP2Name} 배치 시작</span>
@@ -1415,25 +1415,25 @@ export function GradientCupGame({
         <GameBoardLayout
           onlineReactionBar={onlineReactionBar}
           topBar={
-            <div className="rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4 sm:py-2.5">
+            <div className="rounded-2xl border-2 border-[#2B2857] bg-[#1D1B3D] px-3 py-2 shadow-[0_3px_0_#15132d] sm:px-4 sm:py-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   {!isOnline && (
                     <button
                       type="button"
                       onClick={() => setPhase('SETUP')}
-                      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-slate-800 bg-[#0B0F17] px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
+                      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2.5 py-1 text-xs font-extrabold text-white transition-all hover:border-[#FFD21E] hover:text-[#FFD21E] active:translate-y-[1px] whitespace-nowrap"
                     >
                       <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                       <span className="hidden sm:inline">모드</span>
                     </button>
                   )}
                   <div className="min-w-0 truncate text-xs sm:text-sm">
-                    <span className="font-mono font-bold text-cyan-300">
+                    <span className="font-mono font-black text-[#FFD21E]">
                       ROUND {effectiveRound}/7
                     </span>
-                    <span aria-hidden="true" className="mx-1.5 text-slate-600">·</span>
-                    <span className="text-slate-300">
+                    <span aria-hidden="true" className="mx-1.5 text-white/35">·</span>
+                    <span className="font-bold text-white/85">
                       선공: {effectiveLeadPlayer === 1 ? effectiveP1Name : effectiveP2Name}
                     </span>
                   </div>
@@ -1443,36 +1443,36 @@ export function GradientCupGame({
                   {isOnline &&
                     (effectiveBattleSubPhase === 'LEAD_PICK' ||
                       effectiveBattleSubPhase === 'FOLLOW_PICK') && (
-                      <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-[#0B0F17] px-2 py-0.5">
+                      <div className="flex items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2 py-0.5">
                         <Clock
                           className={`h-3 w-3 ${
-                            battleShotClock <= 10 ? 'text-rose-400' : 'text-cyan-300'
+                            battleShotClock <= 10 ? 'text-rose-400' : 'text-[#FFD21E]'
                           }`}
                           aria-hidden="true"
                         />
                         <span
-                          className={`text-xs font-bold tabular-nums ${
-                            battleShotClock <= 10 ? 'text-rose-400' : 'text-slate-100'
+                          className={`text-xs font-extrabold tabular-nums ${
+                            battleShotClock <= 10 ? 'text-rose-400' : 'text-white'
                           }`}
                         >
                           {battleShotClock}s
                         </span>
                       </div>
                     )}
-                  <span className="text-cyan-300">
-                    <span className="hidden font-sans text-xs text-slate-400 sm:inline">
+                  <span className="text-sky-400">
+                    <span className="hidden font-sans text-xs font-bold text-white/75 sm:inline">
                       {effectiveP1Name}{' '}
                     </span>
-                    <strong className="text-base tabular-nums sm:text-lg">
+                    <strong className="text-base font-black tabular-nums sm:text-lg">
                       {effectiveP1Score}
                     </strong>
                   </span>
-                  <span className="text-slate-600">:</span>
+                  <span className="text-white/40">:</span>
                   <span className="text-rose-300">
-                    <strong className="text-base tabular-nums sm:text-lg">
+                    <strong className="text-base font-black tabular-nums sm:text-lg">
                       {effectiveP2Score}
                     </strong>
-                    <span className="hidden font-sans text-xs text-slate-400 sm:inline">
+                    <span className="hidden font-sans text-xs font-bold text-white/75 sm:inline">
                       {' '}{effectiveP2Name}
                     </span>
                   </span>
@@ -1488,9 +1488,9 @@ export function GradientCupGame({
             !isMyOnlinePickTurn ? (
               <div
                 role="status"
-                className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/75 px-3 py-1.5 text-xs font-semibold text-slate-200"
+                className="flex items-center gap-2 rounded-xl border-2 border-[#6B61FF] bg-[#1D1B3D] px-3 py-1.5 text-xs font-extrabold text-white shadow-[0_3px_0_#15132d]"
               >
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-300 shrink-0" aria-hidden="true" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FFD21E] shrink-0" aria-hidden="true" />
                 <span className="truncate">
                   {effectiveBattleSubPhase === 'REVEAL_WAIT'
                     ? '양측 선택 숫자를 공개하고 있습니다...'
@@ -1508,22 +1508,22 @@ export function GradientCupGame({
             ) : undefined
           }
           mainStage={
-            <div className="flex h-full min-h-0 flex-col items-center justify-center rounded-2xl border border-slate-800 bg-[#131926] p-4 text-center sm:p-6">
+            <div className="arcade-panel flex h-full min-h-0 flex-col items-center justify-center rounded-3xl p-4 text-center sm:p-6">
               {!isOnline && effectiveBattleSubPhase === 'HANDOFF_LEAD' && (
                 <div className="max-w-sm">
-                  <EyeOff className="mx-auto h-9 w-9 text-cyan-300" aria-hidden="true" />
-                  <h2 className="mt-3 text-lg font-bold text-slate-100 sm:text-xl">
+                  <EyeOff className="mx-auto h-9 w-9 text-[#6B61FF]" aria-hidden="true" />
+                  <h2 className="mt-3 text-lg font-black text-[#FFD21E] sm:text-xl">
                     {effectiveRound}라운드 선공 ·{' '}
                     {effectiveLeadPlayer === 1 ? effectiveP1Name : effectiveP2Name}
                   </h2>
-                  <p className="mt-2 text-xs text-slate-400 sm:text-sm">
+                  <p className="mt-2 text-xs text-white/75 sm:text-sm">
                     다른 플레이어가 화면을 보지 않는지 확인한 뒤 컵을 선택하세요.
                   </p>
                   <button
                     type="button"
                     disabled={isPaused}
                     onClick={() => setBattleSubPhase('LEAD_PICK')}
-                    className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-cyan-400 px-5 py-2.5 text-xs font-bold text-slate-950 transition-colors hover:bg-cyan-300 disabled:opacity-45 sm:text-sm"
+                    className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#FFD21E] px-5 py-2.5 text-xs font-black text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9E7D00] disabled:opacity-45 sm:text-sm"
                   >
                     <Eye className="h-4 w-4" aria-hidden="true" />
                     <span>내 컵 확인 및 선택하기</span>
@@ -1535,19 +1535,19 @@ export function GradientCupGame({
                 effectiveBattleSubPhase === 'HANDOFF_FOLLOW' &&
                 effectiveLeadChosenIdx !== null && (
                   <div className="max-w-sm">
-                    <EyeOff className="mx-auto h-9 w-9 text-sky-400" aria-hidden="true" />
-                    <h2 className="mt-3 text-lg font-bold text-slate-100 sm:text-xl">
+                    <EyeOff className="mx-auto h-9 w-9 text-[#6B61FF]" aria-hidden="true" />
+                    <h2 className="mt-3 text-lg font-black text-[#FFD21E] sm:text-xl">
                       {effectiveRound}라운드 후공 ·{' '}
                       {effectiveFollowPlayer === 1 ? effectiveP1Name : effectiveP2Name}
                     </h2>
-                    <p className="mt-2 text-xs text-slate-400 sm:text-sm">
+                    <p className="mt-2 text-xs text-white/75 sm:text-sm">
                       상대가 중앙 가림막에 컵을 올렸습니다. 기기를 넘겨받아 대응할 컵을 고르세요.
                     </p>
                     <button
                       type="button"
                       disabled={isPaused}
                       onClick={() => setBattleSubPhase('FOLLOW_PICK')}
-                      className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-400 px-5 py-2.5 text-xs font-bold text-slate-950 transition-colors hover:bg-sky-300 disabled:opacity-45 sm:text-sm"
+                      className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#FFD21E] px-5 py-2.5 text-xs font-black text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9E7D00] disabled:opacity-45 sm:text-sm"
                     >
                       <Eye className="h-4 w-4" aria-hidden="true" />
                       <span>가림막 확인 및 내 컵 고르기</span>
@@ -1560,7 +1560,7 @@ export function GradientCupGame({
                 effectiveBattleSubPhase === 'REVEAL_WAIT' ||
                 effectiveBattleSubPhase === 'REVEAL') && (
                 <div className="flex w-full flex-col items-center">
-                  <p className="text-xs font-semibold text-slate-400">
+                  <p className="text-xs font-black text-[#FFD21E]">
                     {effectiveBattleSubPhase === 'REVEAL'
                       ? '동시 공개 결과'
                       : '중앙 가림막 (숫자 비공개 · 색상만 표시)'}
@@ -1569,7 +1569,7 @@ export function GradientCupGame({
                   <div className="mt-4 flex items-center justify-center gap-5 sm:mt-6 sm:gap-10">
                     {/* Lead Cup */}
                     <div className="flex flex-col items-center gap-1.5">
-                      <span className="text-xs font-medium text-slate-400">
+                      <span className="text-xs font-bold text-white/80">
                         선공 ({effectiveLeadPlayer === 1 ? effectiveP1Name : effectiveP2Name})
                       </span>
                       {effectiveLeadChosenIdx !== null ? (
@@ -1590,7 +1590,7 @@ export function GradientCupGame({
                           size: 'lg',
                         })
                       ) : (
-                        <div className="flex h-28 w-24 items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 text-xs text-slate-500 sm:h-32 sm:w-28">
+                        <div className="flex h-28 w-24 items-center justify-center rounded-2xl border-2 border-dashed border-[#2B2857] bg-[#121026] text-xs font-bold text-white/60 sm:h-32 sm:w-28">
                           {effectiveBattleSubPhase === 'LEAD_PICK' &&
                           !isOnline &&
                           mode === 'ai' &&
@@ -1601,18 +1601,18 @@ export function GradientCupGame({
                       )}
                       {effectiveLeadChosenIdx !== null &&
                         effectiveBattleSubPhase !== 'REVEAL' && (
-                          <span className="text-xs font-medium text-cyan-300">
+                          <span className="text-xs font-bold text-[#FFD21E]">
                             {CUP_COLOR_BY_INDEX[effectiveLeadChosenIdx].label} (
                             {CUP_COLOR_BY_INDEX[effectiveLeadChosenIdx].pairHint})
                           </span>
                         )}
                     </div>
 
-                    <span className="font-mono text-lg font-bold text-slate-600">VS</span>
+                    <span className="font-mono text-lg font-black text-[#FF61D2]">VS</span>
 
                     {/* Follow Cup */}
                     <div className="flex flex-col items-center gap-1.5">
-                      <span className="text-xs font-medium text-slate-400">
+                      <span className="text-xs font-bold text-white/80">
                         후공 ({effectiveFollowPlayer === 1 ? effectiveP1Name : effectiveP2Name})
                       </span>
                       {effectiveFollowChosenIdx !== null &&
@@ -1628,7 +1628,7 @@ export function GradientCupGame({
                           size: 'lg',
                         })
                       ) : (
-                        <div className="flex h-28 w-24 items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 text-xs text-slate-500 sm:h-32 sm:w-28">
+                        <div className="flex h-28 w-24 items-center justify-center rounded-2xl border-2 border-dashed border-[#2B2857] bg-[#121026] text-xs font-bold text-white/60 sm:h-32 sm:w-28">
                           {effectiveBattleSubPhase === 'FOLLOW_PICK' &&
                           !isOnline &&
                           mode === 'ai' &&
@@ -1642,12 +1642,12 @@ export function GradientCupGame({
 
                   {effectiveBattleSubPhase === 'REVEAL' &&
                     effectiveHistory[effectiveHistory.length - 1] && (
-                      <div className="mt-4 w-full max-w-md border-t border-slate-800 pt-4 sm:mt-6">
+                      <div className="mt-4 w-full max-w-md border-t-2 border-[#2B2857] pt-4 sm:mt-6">
                         {(() => {
                           const rec = effectiveHistory[effectiveHistory.length - 1];
                           if (rec.winner === 'DRAW') {
                             return (
-                              <p className="text-sm font-bold text-slate-200 sm:text-base">
+                              <p className="text-sm font-extrabold text-white sm:text-base">
                                 같은 숫자({rec.p1Value})로 무승부! 양쪽 0점
                               </p>
                             );
@@ -1655,7 +1655,7 @@ export function GradientCupGame({
                           const winnerName =
                             rec.winner === 1 ? effectiveP1Name : effectiveP2Name;
                           return (
-                            <p className="text-sm font-bold text-emerald-400 sm:text-base">
+                            <p className="text-sm font-black text-[#FFD21E] sm:text-base">
                               {winnerName}님이 더 큰 숫자로 +1점!
                             </p>
                           );
@@ -1665,7 +1665,7 @@ export function GradientCupGame({
                           type="button"
                           disabled={isPaused}
                           onClick={handleNextRound}
-                          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-cyan-400 px-6 py-2.5 text-xs font-bold text-slate-950 transition-colors hover:bg-cyan-300 disabled:opacity-45 sm:text-sm"
+                          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#FFD21E] px-6 py-2.5 text-xs font-black text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9E7D00] disabled:opacity-45 sm:text-sm"
                         >
                           <span>
                             {effectiveRound >= 7
@@ -1684,7 +1684,7 @@ export function GradientCupGame({
               {/* Active Human Player's Cup Selection Tray */}
               {isOnline ? (
                 myLocalSetup.length === 7 ? (
-                  <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4">
+                  <div className="arcade-panel rounded-2xl p-3 sm:rounded-3xl sm:p-4">
                     {(() => {
                       const myUsedSet = new Set(
                         myRole === 'P1' ? effectiveP1Used : effectiveP2Used,
@@ -1695,14 +1695,14 @@ export function GradientCupGame({
                       return (
                         <>
                           <div className="flex items-center justify-between gap-2">
-                            <h3 className="truncate text-xs font-bold text-slate-100 sm:text-sm">
+                            <h3 className="truncate text-xs font-black text-white sm:text-sm">
                               {myName} 내 컵 목록
                             </h3>
                             <span
-                              className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ${
+                              className={`shrink-0 rounded-lg border px-1.5 py-0.5 text-[11px] font-extrabold ${
                                 canPickNow
-                                  ? 'bg-emerald-500/20 text-emerald-300'
-                                  : 'bg-slate-800 text-slate-400'
+                                  ? 'border-[#FFD21E] bg-[#FFD21E] text-[#121026]'
+                                  : 'border-[#2B2857] bg-[#121026] text-white/75'
                               }`}
                             >
                               {effectiveBattleSubPhase === 'REVEAL'
@@ -1729,7 +1729,7 @@ export function GradientCupGame({
                                       ? handleLeadSelectCup(idx)
                                       : handleFollowSelectCup(idx)
                                   }
-                                  className={`flex flex-col items-center justify-center rounded-b-xl rounded-t-md border-2 py-2 transition-transform focus-visible:outline-2 focus-visible:outline-cyan-300 sm:min-h-18 ${
+                                  className={`flex flex-col items-center justify-center rounded-b-xl rounded-t-md border-2 py-2 transition-transform focus-visible:outline-2 focus-visible:outline-[#FFD21E] sm:min-h-18 ${
                                     isUsed
                                       ? 'cursor-not-allowed opacity-25 grayscale'
                                       : !canPickNow
@@ -1757,7 +1757,7 @@ export function GradientCupGame({
                     })()}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 text-center text-xs text-slate-400 sm:rounded-2xl sm:p-4">
+                  <div className="arcade-panel rounded-2xl p-3 text-center text-xs font-bold text-white/75 sm:rounded-3xl sm:p-4">
                     배치 데이터를 불러오는 중입니다...
                   </div>
                 )
@@ -1765,7 +1765,7 @@ export function GradientCupGame({
                   !(mode === 'ai' && effectiveLeadPlayer === 2)) ||
                   (effectiveBattleSubPhase === 'FOLLOW_PICK' &&
                     !(mode === 'ai' && effectiveFollowPlayer === 2))) ? (
-                <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4">
+                <div className="arcade-panel rounded-2xl p-3 sm:rounded-3xl sm:p-4">
                   {(() => {
                     const activePicker: 1 | 2 =
                       effectiveBattleSubPhase === 'LEAD_PICK'
@@ -1781,10 +1781,10 @@ export function GradientCupGame({
                     return (
                       <>
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="truncate text-xs font-bold text-slate-100 sm:text-sm">
+                          <h3 className="truncate text-xs font-black text-white sm:text-sm">
                             {activeName} 컵 선택
                           </h3>
-                          <span className="shrink-0 text-[11px] text-slate-400">
+                          <span className="shrink-0 rounded-lg border border-[#FFD21E]/60 bg-[#121026] px-1.5 py-0.5 text-[11px] font-extrabold text-[#FFD21E]">
                             {effectiveBattleSubPhase === 'LEAD_PICK' ? '선공' : '후공 대응'}
                           </span>
                         </div>
@@ -1803,7 +1803,7 @@ export function GradientCupGame({
                                     ? handleLeadSelectCup(idx)
                                     : handleFollowSelectCup(idx)
                                 }
-                                className={`flex flex-col items-center justify-center rounded-b-xl rounded-t-md border-2 py-2 transition-transform focus-visible:outline-2 focus-visible:outline-cyan-300 sm:min-h-18 ${
+                                className={`flex flex-col items-center justify-center rounded-b-xl rounded-t-md border-2 py-2 transition-transform focus-visible:outline-2 focus-visible:outline-[#FFD21E] sm:min-h-18 ${
                                   isUsed
                                     ? 'cursor-not-allowed opacity-25 grayscale'
                                     : 'cursor-pointer hover:-translate-y-0.5'
@@ -1829,7 +1829,7 @@ export function GradientCupGame({
                   })()}
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 text-center text-xs text-slate-400 sm:rounded-2xl sm:p-4">
+                <div className="arcade-panel rounded-2xl p-3 text-center text-xs font-bold text-white/75 sm:rounded-3xl sm:p-4">
                   {effectiveBattleSubPhase === 'REVEAL'
                     ? '라운드 결과를 확인한 뒤 다음 라운드를 진행하세요.'
                     : effectiveBattleSubPhase === 'HANDOFF_LEAD' ||
@@ -1841,31 +1841,31 @@ export function GradientCupGame({
 
               {/* Compact Round Log (visible cleanly on Fold unfolded >=640px) */}
               {effectiveHistory.length > 0 && (
-                <div className="hidden rounded-2xl border border-slate-800 bg-[#131926] p-4 sm:block">
-                  <h3 className="text-xs font-semibold text-slate-300">
+                <div className="arcade-panel hidden rounded-3xl p-4 sm:block">
+                  <h3 className="text-xs font-black text-[#FFD21E]">
                     진행 기록 ({effectiveHistory.length}/7)
                   </h3>
                   <div className="mt-2 space-y-1.5 text-[11px]">
                     {[...effectiveHistory].reverse().map((rec) => (
                       <div
                         key={rec.round}
-                        className="flex items-center justify-between gap-2 rounded-lg bg-[#0B0F17] px-2.5 py-1.5 font-mono tabular-nums"
+                        className="flex items-center justify-between gap-2 rounded-xl border border-[#2B2857] bg-[#121026] px-2.5 py-1.5 font-mono tabular-nums"
                       >
-                        <span className="text-slate-500">{rec.round}R</span>
-                        <span className="text-cyan-300">
+                        <span className="font-bold text-white/60">{rec.round}R</span>
+                        <span className="font-bold text-sky-400">
                           {rec.p1CupIdx + 1}번({rec.p1Value})
                         </span>
-                        <span className="text-slate-600">:</span>
-                        <span className="text-rose-300">
+                        <span className="text-white/40">:</span>
+                        <span className="font-bold text-rose-300">
                           {rec.p2CupIdx + 1}번({rec.p2Value})
                         </span>
                         <span
                           className={
                             rec.winner === 1
-                              ? 'font-sans font-semibold text-cyan-300'
+                              ? 'font-sans font-extrabold text-sky-400'
                               : rec.winner === 2
-                                ? 'font-sans font-semibold text-rose-300'
-                                : 'font-sans text-slate-400'
+                                ? 'font-sans font-extrabold text-rose-300'
+                                : 'font-sans font-bold text-white/65'
                           }
                         >
                           {rec.winner === 'DRAW'
@@ -1888,19 +1888,19 @@ export function GradientCupGame({
       {effectivePhase === 'RESULT' && (
         <div className="h-full overflow-y-auto">
           <main className="mx-auto w-full max-w-4xl px-3 py-5 sm:px-6 sm:py-8">
-            <section className="rounded-2xl border border-slate-800 bg-[#131926] p-5 sm:p-7">
+            <section className="arcade-panel rounded-3xl p-5 sm:p-7">
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                  <div className="flex items-center gap-2 text-xs font-black text-[#FFD21E]">
                     <Trophy className="h-4 w-4" aria-hidden="true" />
                     <span>7라운드 최종 결과</span>
                   </div>
-                  <h1 className="mt-1.5 text-2xl font-bold text-slate-50 sm:text-3xl">
+                  <h1 className="arcade-hero-title mt-1.5 -rotate-1 text-3xl text-white sm:text-4xl">
                     {finalWinner === 'DRAW'
                       ? '무승부로 종료되었습니다'
                       : `${finalWinner === 1 ? effectiveP1Name : effectiveP2Name}님의 승리!`}
                   </h1>
-                  <p className="mt-1 font-mono text-sm text-slate-300">
+                  <p className="mt-1 font-mono text-sm font-black text-[#FFD21E]">
                     {effectiveP1Name} {effectiveP1Score}점 : {effectiveP2Score}점{' '}
                     {effectiveP2Name}
                   </p>
@@ -1913,7 +1913,7 @@ export function GradientCupGame({
                         type="button"
                         disabled={isRematching}
                         onClick={() => void handleOnlineRematch()}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-cyan-300 disabled:opacity-60 whitespace-nowrap"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-[#FFD21E] px-4 py-2 text-xs font-black text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9E7D00] disabled:opacity-60 whitespace-nowrap"
                       >
                         <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                         <span>
@@ -1925,7 +1925,7 @@ export function GradientCupGame({
                       <button
                         type="button"
                         onClick={onReturnToWaitingRoom}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl border-2 border-[#2B2857] bg-[#121026] px-4 py-2 text-xs font-extrabold text-white shadow-[0_3px_0_#15132d] transition-all hover:border-[#6B61FF] hover:text-[#FFD21E] active:translate-y-[1px] whitespace-nowrap"
                       >
                         <Home className="h-3.5 w-3.5" aria-hidden="true" />
                         <span>대기실로 돌아가기</span>
@@ -1937,7 +1937,7 @@ export function GradientCupGame({
                     <button
                       type="button"
                       onClick={startNewGame}
-                      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-cyan-300 whitespace-nowrap"
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-[#FFD21E] px-4 py-2 text-xs font-black text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9E7D00] whitespace-nowrap"
                     >
                       <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>다시하기</span>
@@ -1945,7 +1945,7 @@ export function GradientCupGame({
                     <button
                       type="button"
                       onClick={() => setPhase('SETUP')}
-                      className="inline-flex min-h-11 items-center rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap"
+                      className="inline-flex min-h-11 items-center rounded-2xl border-2 border-[#2B2857] bg-[#121026] px-4 py-2 text-xs font-extrabold text-white shadow-[0_3px_0_#15132d] transition-all hover:border-[#6B61FF] hover:text-[#FFD21E] active:translate-y-[1px] whitespace-nowrap"
                     >
                       모드 변경
                     </button>
@@ -1953,7 +1953,7 @@ export function GradientCupGame({
                 )}
               </div>
               {isOnline && !isHost && (
-                <p className="mt-3 text-xs text-slate-400">
+                <p className="mt-3 text-xs text-white/70">
                   방장({onlineRoom?.players?.[hostRole]?.nickname ?? hostRole})이 재대결 또는 대기실 복귀를 선택할 수 있습니다.
                 </p>
               )}
@@ -1968,7 +1968,7 @@ export function GradientCupGame({
                     ? (onlineCup?.finalSetups?.P1 ??
                       (myRole === 'P1' ? myLocalSetup : []))
                     : p1Setup,
-                  accent: 'text-cyan-300',
+                  accent: 'text-sky-400',
                 },
                 {
                   name: effectiveP2Name,
@@ -1983,13 +1983,13 @@ export function GradientCupGame({
                 return (
                   <div
                     key={pIdx}
-                    className="rounded-2xl border border-slate-800 bg-[#131926] p-4 sm:p-5"
+                    className="arcade-panel rounded-3xl p-4 sm:p-5"
                   >
                     <div className="flex items-baseline justify-between gap-2">
-                      <h2 className={`text-sm font-bold ${player.accent}`}>
+                      <h2 className={`text-sm font-black ${player.accent}`}>
                         {player.name} 초기 배치표
                       </h2>
-                      <span className="font-mono text-xs text-slate-400">
+                      <span className="font-mono text-xs font-bold text-white/75">
                         총합 {sum} / 30
                       </span>
                     </div>
@@ -2002,7 +2002,7 @@ export function GradientCupGame({
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-4 text-xs text-slate-400">
+                      <p className="mt-4 text-xs text-white/70">
                         상대방 배치표를 불러오는 중...
                       </p>
                     )}
@@ -2012,35 +2012,35 @@ export function GradientCupGame({
             </section>
 
             {/* Round-by-round Match History */}
-            <section className="mt-5 rounded-2xl border border-slate-800 bg-[#131926] p-4 sm:p-5">
-              <h2 className="text-sm font-bold text-slate-100">라운드별 대결 복기</h2>
-              <div className="mt-3 divide-y divide-slate-800/80">
+            <section className="arcade-panel mt-5 rounded-3xl p-4 sm:p-5">
+              <h2 className="text-sm font-black text-[#FFD21E]">라운드별 대결 복기</h2>
+              <div className="mt-3 divide-y divide-[#2B2857]">
                 {effectiveHistory.map((rec) => (
                   <div
                     key={rec.round}
-                    className="flex flex-wrap items-center justify-between gap-3 py-2 text-xs"
+                    className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-xs"
                   >
-                    <span className="font-mono font-bold text-slate-400">
+                    <span className="font-mono font-extrabold text-white/65">
                       {rec.round}R
                     </span>
                     <div className="flex items-center gap-3">
-                      <span className="text-cyan-300">
+                      <span className="font-bold text-sky-400">
                         {effectiveP1Name}: {rec.p1CupIdx + 1}번 컵(
                         <strong className="font-mono">{rec.p1Value}</strong>)
                       </span>
-                      <span className="text-slate-600">vs</span>
-                      <span className="text-rose-300">
+                      <span className="text-white/40">vs</span>
+                      <span className="font-bold text-rose-300">
                         {effectiveP2Name}: {rec.p2CupIdx + 1}번 컵(
                         <strong className="font-mono">{rec.p2Value}</strong>)
                       </span>
                     </div>
                     <span
-                      className={`font-semibold ${
+                      className={`font-extrabold ${
                         rec.winner === 1
-                          ? 'text-cyan-300'
+                          ? 'text-sky-400'
                           : rec.winner === 2
                             ? 'text-rose-300'
-                            : 'text-slate-400'
+                            : 'text-white/65'
                       }`}
                     >
                       {rec.winner === 'DRAW'

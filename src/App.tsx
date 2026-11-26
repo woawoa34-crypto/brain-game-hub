@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   HelpCircle,
-  KeyRound,
   Maximize2,
   Minimize2,
   Pause,
@@ -10,7 +9,6 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { ApiKeyModal } from './components/ApiKeyModal';
 import { BlindMazeGame } from './components/BlindMazeGame';
 import { ConfirmExitModal } from './components/ConfirmExitModal';
 import { FlagMemoryGame } from './components/FlagMemoryGame';
@@ -44,8 +42,6 @@ import type { ActiveGame } from './types';
 import type { OnlineRoomData } from './types/online';
 import { soundEngine, unlockAudio } from './utils/sound';
 
-const API_KEY_STORAGE_KEY = 'brain_survival_gemini_api_key';
-
 const GAME_TITLES: Record<Exclude<ActiveGame, 'LOBBY'>, string> = {
   WORD_GAME: '말결 (AI 유사어 추리)',
   FLAG_GAME: '국기 기억력 테스트',
@@ -59,18 +55,8 @@ export default function App() {
   const [lobbyMode, setLobbyMode] = useState<LobbyMode>('local');
   const [localRestartKey, setLocalRestartKey] = useState<number>(0);
 
-  const [savedApiKey, setSavedApiKey] = useState<string>(() => {
-    try {
-      return window.localStorage.getItem(API_KEY_STORAGE_KEY) ?? '';
-    } catch {
-      return '';
-    }
-  });
-  const [hasServerKey] = useState<boolean>(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [quickRulebookOpen, setQuickRulebookOpen] = useState(false);
-  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
-  const [apiKeyPromptReason, setApiKeyPromptReason] = useState<'manual' | 'word_game'>('manual');
   const [muted, setMuted] = useState(false);
   const [localPaused, setLocalPaused] = useState(false);
   const [confirmExitOpen, setConfirmExitOpen] = useState(false);
@@ -88,7 +74,6 @@ export default function App() {
   const intentionalLeaveRef = useRef(false);
   const popGuardActiveRef = useRef(false);
 
-  const isApiConnected = Boolean(savedApiKey.trim()) || hasServerKey;
   const isOnlineMatch = Boolean(roomSession && onlineRoom && onlineRoom.status === 'PLAYING');
   const isPaused = isOnlineMatch ? Boolean(onlineRoom?.isPaused) : localPaused;
 
@@ -246,24 +231,6 @@ export default function App() {
     };
   }, [activeGame]);
 
-  const handleSaveApiKey = (key: string) => {
-    setSavedApiKey(key);
-    try {
-      window.localStorage.setItem(API_KEY_STORAGE_KEY, key);
-    } catch {
-      // Storage unavailable
-    }
-  };
-
-  const handleClearApiKey = () => {
-    setSavedApiKey('');
-    try {
-      window.localStorage.removeItem(API_KEY_STORAGE_KEY);
-    } catch {
-      // Storage unavailable
-    }
-  };
-
   const handleNicknameChange = (name: string) => {
     setNickname(name);
     saveNickname(name);
@@ -328,10 +295,6 @@ export default function App() {
     setLocalPaused(false);
     setQuickRulebookOpen(false);
     setActiveGame(game);
-    if (game === 'WORD_GAME' && !savedApiKey.trim() && !hasServerKey) {
-      setApiKeyPromptReason('word_game');
-      setApiKeyModalOpen(true);
-    }
   };
 
   const handleConfirmExitGame = () => {
@@ -361,11 +324,6 @@ export default function App() {
     setLocalRestartKey((prev) => prev + 1);
   };
 
-  const openManualApiKeyModal = () => {
-    setApiKeyPromptReason('manual');
-    setApiKeyModalOpen(true);
-  };
-
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
@@ -388,14 +346,14 @@ export default function App() {
     ) : undefined;
 
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-[#0B0F17] text-slate-100 min-[680px]:h-dvh min-[680px]:overflow-hidden">
-      {/* Fixed 44px Slim Header across Lobby & Games */}
-      <header className="sticky top-0 z-30 h-11 shrink-0 border-b border-slate-800/80 bg-[#0B0F17]/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-full w-full max-w-6xl items-center justify-between gap-2 px-3 sm:gap-3 sm:px-5">
+    <div className="arcade-canvas flex min-h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden text-white min-[680px]:h-dvh min-[680px]:overflow-hidden">
+      {/* Slim Arcade Header across Lobby & Games */}
+      <header className="sticky top-0 z-30 h-12 shrink-0 border-b-2 border-[#2B2857] bg-[#121026]/92 backdrop-blur-md">
+        <div className="mx-auto flex h-full w-full max-w-6xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5">
           {/* Left Zone: Brand on Lobby, or [← 로비로/대기실] + Game Title + Online HUD */}
-          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             {activeGame === 'LOBBY' ? (
-              <span className="font-display text-sm font-bold tracking-tight text-slate-50 sm:text-base whitespace-nowrap shrink-0">
+              <span className="font-display text-xl font-bold tracking-tight text-[#FFD21E] drop-shadow-[2px_2px_0_#6B61FF] sm:text-2xl whitespace-nowrap shrink-0">
                 브레인 서바이벌
               </span>
             ) : (
@@ -403,27 +361,29 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setConfirmExitOpen(true)}
-                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-slate-800/90 px-2.5 text-xs font-semibold text-slate-100 transition-colors hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
+                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] px-2.5 text-xs font-bold text-white shadow-[0_3px_0_#15132d] transition-all hover:border-[#6B61FF] active:translate-y-[2px] active:shadow-none focus-visible:outline-2 focus-visible:outline-[#FFD21E] whitespace-nowrap"
                 >
-                  <ArrowLeft className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
+                  <ArrowLeft className="h-3.5 w-3.5 text-[#FFD21E]" aria-hidden="true" />
                   <span>{isOnlineMatch ? '나가기' : '로비로'}</span>
                 </button>
-                <span className="truncate text-xs font-bold text-slate-100 sm:text-sm">
+                <span className="font-display truncate text-lg font-bold text-[#FF61D2] sm:text-xl">
                   {GAME_TITLES[activeGame]}
                 </span>
 
                 {isOnlineMatch && onlineRoom && (
-                  <div className="hidden items-center gap-1.5 rounded-lg border border-slate-800 bg-[#131926] px-2 py-0.5 text-[11px] md:inline-flex">
-                    <span className="font-mono font-bold text-slate-200 tabular-nums">
+                  <div className="hidden items-center gap-1.5 rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] px-2.5 py-0.5 text-[11px] font-mono md:inline-flex">
+                    <span className="font-bold text-[#FFD21E] tabular-nums">
                       P1 {onlineRoom.scores?.P1 ?? 0}:{onlineRoom.scores?.P2 ?? 0} P2
                     </span>
                     {opponentPlayer && (
                       <>
-                        <span className="text-slate-600">·</span>
-                        <span className="truncate max-w-24 text-slate-300">
+                        <span className="text-white/35">·</span>
+                        <span className="truncate max-w-24 text-white">
                           {opponentPlayer.nickname}
                         </span>
-                        <span>{opponentOnline ? '🟢' : '🟡'}</span>
+                        <span className={opponentOnline ? 'text-emerald-400' : 'text-[#FFD21E]'}>
+                          {opponentOnline ? '접속' : '대기'}
+                        </span>
                       </>
                     )}
                   </div>
@@ -436,55 +396,57 @@ export default function App() {
           {activeGame === 'LOBBY' && lobbyMode === 'local' && (
             <nav
               aria-label="허브 탐색"
-              className="hidden lg:flex items-center gap-4 text-xs font-medium text-slate-400"
+              className="hidden lg:flex items-center gap-5 text-xs font-bold text-white/75"
             >
               <button
                 type="button"
                 onClick={() => handleSelectGame('WORD_GAME')}
-                className="py-1 transition-colors hover:text-sky-400 whitespace-nowrap"
+                className="py-1 underline-offset-4 transition-colors hover:text-[#FFD21E] hover:underline whitespace-nowrap shrink-0"
               >
                 말결
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectGame('FLAG_GAME')}
-                className="py-1 transition-colors hover:text-emerald-400 whitespace-nowrap"
+                className="py-1 underline-offset-4 transition-colors hover:text-[#FF61D2] hover:underline whitespace-nowrap shrink-0"
               >
                 국기 기억력
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectGame('WALLBADUK_GAME')}
-                className="py-1 transition-colors hover:text-amber-300 whitespace-nowrap"
+                className="py-1 underline-offset-4 transition-colors hover:text-[#FFD21E] hover:underline whitespace-nowrap shrink-0"
               >
                 벽바둑 2
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectGame('BLIND_MAZE_GAME')}
-                className="py-1 transition-colors hover:text-violet-300 whitespace-nowrap"
+                className="py-1 underline-offset-4 transition-colors hover:text-[#6B61FF] hover:underline whitespace-nowrap shrink-0"
               >
                 블라인드 미로
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectGame('GRADIENT_CUP_GAME')}
-                className="py-1 transition-colors hover:text-cyan-300 whitespace-nowrap"
+                className="py-1 underline-offset-4 transition-colors hover:text-[#FF61D2] hover:underline whitespace-nowrap shrink-0"
               >
                 7개의 컵
               </button>
             </nav>
           )}
 
-          {/* Right Zone: Lobby Rules / Sound / API Badge / PWA Install / [⏸ 일시정지] / [❓ 룰북] / Fullscreen */}
-          <div className="flex items-center gap-1 shrink-0 sm:gap-1.5">
+          {/* Right Zone */}
+          <div className="flex items-center gap-1.5 shrink-0 sm:gap-2">
             {activeGame === 'LOBBY' && (
               <button
                 type="button"
                 onClick={() => setRulesOpen(true)}
-                className="inline-flex h-8 items-center rounded-lg px-2 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/70 hover:text-slate-100 whitespace-nowrap"
+                aria-label="게임 방법"
+                title="게임 방법"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#C7A100] bg-[#FFD21E] font-mono text-sm font-bold text-[#121026] shadow-[0_3px_0_#9E7D00] transition-all active:translate-y-[2px] active:shadow-none focus-visible:outline-2 focus-visible:outline-[#6B61FF] shrink-0"
               >
-                게임 방법
+                ?
               </button>
             )}
 
@@ -492,34 +454,14 @@ export default function App() {
               type="button"
               onClick={toggleMute}
               aria-label={muted ? '효과음 켜기' : '효과음 끄기'}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800/70 hover:text-slate-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] text-white shadow-[0_3px_0_#15132d] transition-all hover:border-[#6B61FF] active:translate-y-[2px] active:shadow-none"
             >
               {muted ? (
-                <VolumeX className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                <VolumeX className="h-4 w-4 text-white/50" aria-hidden="true" />
               ) : (
-                <Volume2 className="h-4 w-4 text-slate-300" aria-hidden="true" />
+                <Volume2 className="h-4 w-4 text-[#FF61D2]" aria-hidden="true" />
               )}
             </button>
-
-            {(activeGame === 'LOBBY' || activeGame === 'WORD_GAME') && (
-              <button
-                type="button"
-                onClick={openManualApiKeyModal}
-                aria-label={
-                  isApiConnected
-                    ? 'Gemini API 연결됨 (클릭하여 키 수정 또는 삭제)'
-                    : 'Gemini API 미등록 (클릭하여 키 등록)'
-                }
-                className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 sm:px-2.5 sm:text-xs whitespace-nowrap shrink-0 ${
-                  isApiConnected
-                    ? 'border-emerald-500/45 bg-emerald-500/12 text-emerald-300 hover:bg-emerald-500/20'
-                    : 'border-amber-400/45 bg-amber-500/12 text-amber-200 hover:bg-amber-500/20'
-                }`}
-              >
-                <KeyRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span>{isApiConnected ? 'API 연결됨' : 'API 미등록'}</span>
-              </button>
-            )}
 
             {activeGame === 'LOBBY' && <PWAInstallButton />}
 
@@ -529,10 +471,10 @@ export default function App() {
                   type="button"
                   onClick={handleTogglePause}
                   aria-label={isPaused ? '게임 재개' : '일시정지'}
-                  className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 sm:px-2.5 sm:text-xs ${
+                  className={`inline-flex h-8 items-center gap-1 rounded-xl border-2 px-2 text-[11px] font-bold transition-all active:translate-y-[2px] active:shadow-none whitespace-nowrap shrink-0 sm:px-2.5 sm:text-xs ${
                     isPaused
-                      ? 'border-amber-400/70 bg-amber-400/20 text-amber-200'
-                      : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700'
+                      ? 'border-[#C7A100] bg-[#FFD21E] text-[#121026] shadow-[0_3px_0_#9E7D00]'
+                      : 'border-[#2B2857] bg-[#1D1B3D] text-white shadow-[0_3px_0_#15132d] hover:border-[#6B61FF]'
                   }`}
                 >
                   {isPaused ? (
@@ -552,9 +494,9 @@ export default function App() {
                   type="button"
                   onClick={() => setQuickRulebookOpen(true)}
                   aria-label="10초 요약 룰북 열기"
-                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/80 px-2 text-[11px] font-semibold text-slate-200 transition-colors hover:bg-slate-700 whitespace-nowrap shrink-0 sm:px-2.5 sm:text-xs"
+                  className="inline-flex h-8 items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] px-2 text-[11px] font-bold text-white shadow-[0_3px_0_#15132d] transition-all hover:border-[#6B61FF] active:translate-y-[2px] active:shadow-none whitespace-nowrap shrink-0 sm:px-2.5 sm:text-xs"
                 >
-                  <HelpCircle className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
+                  <HelpCircle className="h-3.5 w-3.5 text-[#FFD21E]" aria-hidden="true" />
                   <span>룰북</span>
                 </button>
               </>
@@ -564,10 +506,10 @@ export default function App() {
               type="button"
               onClick={toggleFullscreen}
               aria-label={isFullscreen ? '창 모드로 전환' : '전체 화면으로 전환'}
-              className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 sm:px-2.5 sm:text-xs whitespace-nowrap shrink-0 ${
+              className={`inline-flex h-8 items-center gap-1 rounded-xl border-2 px-2 text-[11px] font-bold transition-all active:translate-y-[2px] active:shadow-none focus-visible:outline-2 focus-visible:outline-[#FFD21E] sm:px-2.5 sm:text-xs whitespace-nowrap shrink-0 ${
                 isFullscreen
-                  ? 'border-sky-400/60 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25'
-                  : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700'
+                  ? 'border-[#5349D9] bg-[#6B61FF] text-white shadow-[0_3px_0_#15132d]'
+                  : 'border-[#2B2857] bg-[#1D1B3D] text-white shadow-[0_3px_0_#15132d] hover:border-[#6B61FF]'
               }`}
             >
               {isFullscreen ? (
@@ -589,8 +531,6 @@ export default function App() {
       <div className="flex-1 min-h-0 overflow-y-auto min-[680px]:overflow-hidden">
         {activeGame === 'LOBBY' && (
           <LobbyScreen
-            savedApiKey={savedApiKey}
-            hasServerKey={hasServerKey}
             lobbyMode={lobbyMode}
             onLobbyModeChange={setLobbyMode}
             onSelectGame={(game) => handleSelectGame(game)}
@@ -611,7 +551,6 @@ export default function App() {
         {activeGame === 'WORD_GAME' && (
           <WordChainGame
             key={`word-${localRestartKey}`}
-            customApiKey={savedApiKey}
             onBackToLobby={() => setConfirmExitOpen(true)}
             isPaused={isPaused}
             onlineRoom={isOnlineMatch ? onlineRoom : null}
@@ -719,15 +658,6 @@ export default function App() {
       <OfflineIndicator />
 
       <RulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} />
-      <ApiKeyModal
-        open={apiKeyModalOpen}
-        savedApiKey={savedApiKey}
-        hasServerKey={hasServerKey}
-        promptReason={apiKeyPromptReason}
-        onSaveApiKey={handleSaveApiKey}
-        onClearApiKey={handleClearApiKey}
-        onClose={() => setApiKeyModalOpen(false)}
-      />
     </div>
   );
 }

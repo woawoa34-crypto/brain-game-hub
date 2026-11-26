@@ -122,20 +122,20 @@ export function GameBoardLayout({
     <div className="mx-auto flex w-full max-w-6xl flex-col overflow-y-auto px-3 py-2 text-sm min-[680px]:h-full min-[680px]:overflow-hidden min-[680px]:px-5 min-[680px]:py-2.5">
       {/* Optional standalone 44px fixed slim header */}
       {(title || onBackToLobby) && (
-        <div className="mb-1.5 flex h-11 shrink-0 items-center justify-between gap-2 rounded-xl border border-slate-800/90 bg-[#131926] px-2.5 sm:px-3.5">
+        <div className="mb-1.5 flex h-11 shrink-0 items-center justify-between gap-2 rounded-2xl border-[3px] border-[#2B2857] bg-[#1D1B3D] px-2.5 shadow-[0_4px_0_#15132d] sm:px-3.5">
           <div className="flex min-w-0 items-center gap-2">
             {onBackToLobby && (
               <button
                 type="button"
                 onClick={onBackToLobby}
-                className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-slate-800/90 px-2.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700 hover:text-white whitespace-nowrap"
+                className="inline-flex h-8 shrink-0 items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2.5 text-xs font-bold text-white transition-colors hover:border-[#6B61FF] hover:text-[#FFD21E] whitespace-nowrap"
               >
-                <ArrowLeft className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
+                <ArrowLeft className="h-3.5 w-3.5 text-[#FF61D2]" aria-hidden="true" />
                 <span>로비로</span>
               </button>
             )}
             {title && (
-              <h2 className="truncate text-xs font-bold text-slate-100 sm:text-sm">
+              <h2 className="truncate font-display text-base font-bold text-[#FFD21E] sm:text-lg">
                 {title}
               </h2>
             )}
@@ -148,9 +148,9 @@ export function GameBoardLayout({
                 type="button"
                 onClick={onOpenRulebook}
                 aria-label="10초 요약 룰북 열기"
-                className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/80 px-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700 whitespace-nowrap"
+                className="inline-flex h-8 items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2 text-xs font-bold text-white transition-colors hover:border-[#6B61FF] hover:text-[#FFD21E] whitespace-nowrap"
               >
-                <HelpCircle className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
+                <HelpCircle className="h-3.5 w-3.5 text-[#FFD21E]" aria-hidden="true" />
                 <span>룰북</span>
               </button>
             )}
@@ -159,10 +159,10 @@ export function GameBoardLayout({
                 type="button"
                 onClick={onTogglePause}
                 aria-label={isPaused ? '게임 재개' : '일시정지'}
-                className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+                className={`inline-flex h-8 items-center gap-1 rounded-xl border-2 px-2.5 text-xs font-bold transition-colors whitespace-nowrap ${
                   isPaused
-                    ? 'border-amber-400/70 bg-amber-400/20 text-amber-200'
-                    : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700'
+                    ? 'border-[#C7A100] bg-[#FFD21E] text-[#121026]'
+                    : 'border-[#2B2857] bg-[#121026] text-white hover:border-[#6B61FF]'
                 }`}
               >
                 {isPaused ? (
@@ -182,10 +182,10 @@ export function GameBoardLayout({
               type="button"
               onClick={toggleFullscreen}
               aria-label={isFullscreen ? '창 모드로 전환' : '전체 화면으로 전환'}
-              className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+              className={`inline-flex h-8 items-center gap-1 rounded-xl border-2 px-2.5 text-xs font-bold transition-colors whitespace-nowrap ${
                 isFullscreen
-                  ? 'border-sky-400/60 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25'
-                  : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700'
+                  ? 'border-[#5349D9] bg-[#6B61FF] text-white'
+                  : 'border-[#2B2857] bg-[#121026] text-white hover:border-[#6B61FF]'
               }`}
             >
               {isFullscreen ? (

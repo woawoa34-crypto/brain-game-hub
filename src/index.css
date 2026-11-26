@@ -1,18 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Noto Sans KR", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Plus Jakarta Sans", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Plus Jakarta Sans", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Gaegu", "Noto Sans KR", cursive;
+  --font-arcade: "Gaegu", "Noto Sans KR", cursive;
+  --font-mono: "Space Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --breakpoint-fold: 680px;
 }
 
 @layer base {
+  :root {
+    --arcade-bg: #121026;
+    --arcade-ink: #ffffff;
+    --arcade-accent: #ffd21e;
+    --arcade-secondary: #6b61ff;
+    --arcade-pink: #ff61d2;
+    --arcade-surface: #1d1b3d;
+    --arcade-border: #2b2857;
+    --arcade-shadow: #15132d;
+  }
+
   html {
     color-scheme: dark;
     font-family: var(--font-sans);
-    background-color: #0B0F17;
-    color: #F1F5F9;
+    background-color: #121026;
+    color: #ffffff;
     overflow-x: hidden;
   }
 
@@ -21,11 +33,18 @@
     min-height: 100dvh;
     overflow-x: hidden;
     letter-spacing: 0.01em;
-    background-color: #0B0F17;
-    color: #F1F5F9;
+    background-color: #121026;
+    color: #ffffff;
+    background-image:
+      radial-gradient(circle at 10% 20%, rgba(107, 97, 255, 0.16) 0%, transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(255, 97, 210, 0.12) 0%, transparent 40%);
   }
 
-  /* Custom subtle dark scrollbar */
+  ::selection {
+    background: #ffd21e;
+    color: #121026;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -34,12 +53,56 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.22);
-    border-radius: 3px;
+    background: rgba(107, 97, 255, 0.35);
+    border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.38);
+    background: rgba(255, 210, 30, 0.75);
   }
+}
+
+.arcade-canvas {
+  background-color: #121026;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(107, 97, 255, 0.16) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(255, 97, 210, 0.12) 0%, transparent 40%);
+}
+
+.arcade-card {
+  background-color: #1d1b3d;
+  border: 3px solid #2b2857;
+  box-shadow: 0 8px 0 #15132d;
+  transition:
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.arcade-card:hover {
+  border-color: #6b61ff;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 0 #15132d;
+}
+
+.arcade-card:active {
+  transform: translateY(4px);
+  box-shadow: 0 4px 0 #15132d;
+}
+
+.arcade-panel {
+  background-color: #1d1b3d;
+  border: 3px solid #2b2857;
+  box-shadow: 0 6px 0 #15132d;
+}
+
+.arcade-icon-box {
+  box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.22);
+}
+
+.arcade-hero-title {
+  font-family: var(--font-arcade);
+  color: #ffd21e;
+  text-shadow: 4px 4px 0 #6b61ff;
 }
 
 @keyframes shake {
@@ -57,5 +120,8 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-shake {
     animation: none;
+  }
+  .arcade-card {
+    transition: none;
   }
 }

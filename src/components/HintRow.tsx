@@ -14,24 +14,24 @@ export function HintRow({ hint, rank, isLatest, onSelectForGuess }: HintRowProps
 
   const barColor =
     tier === 'high'
-      ? 'bg-emerald-500'
+      ? 'bg-[#FF61D2]'
       : tier === 'medium'
-        ? 'bg-amber-400'
-        : 'bg-slate-500';
+        ? 'bg-[#FFD21E]'
+        : 'bg-white/40';
 
   const scoreTextColor =
     tier === 'high'
-      ? 'text-emerald-400'
+      ? 'text-[#FF61D2]'
       : tier === 'medium'
-        ? 'text-amber-300'
-        : 'text-slate-400';
+        ? 'text-[#FFD21E]'
+        : 'text-white/65';
 
   const tierTextColor =
     tier === 'high'
-      ? 'text-emerald-300/90'
+      ? 'text-[#FF61D2]'
       : tier === 'medium'
-        ? 'text-amber-200/85'
-        : 'text-slate-400';
+        ? 'text-[#FFD21E]'
+        : 'text-white/60';
 
   const scaleX = Math.max(0.02, Math.min(1, hint.similarity / 100));
 
@@ -41,38 +41,38 @@ export function HintRow({ hint, rank, isLatest, onSelectForGuess }: HintRowProps
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-      className={`group rounded-xl border px-4 py-3 transition-colors duration-150 ${
+      className={`group rounded-2xl border-2 px-4 py-3 transition-colors duration-150 ${
         isLatest
-          ? 'border-sky-500/45 bg-sky-500/[0.07]'
-          : 'border-slate-800/80 bg-[#131926] hover:border-slate-700/80'
+          ? 'border-[#FFD21E] bg-[#1D1B3D] shadow-[0_4px_0_#9E7D00]'
+          : 'border-[#2B2857] bg-[#1D1B3D] hover:border-[#6B61FF]'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-baseline gap-3">
-          <span className="w-6 shrink-0 font-mono text-xs font-semibold tabular-nums text-slate-500">
+          <span className="w-6 shrink-0 font-mono text-xs font-bold tabular-nums text-white/50">
             {rank}
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="truncate text-base font-semibold text-slate-100">
+              <span className="truncate text-base font-bold text-white">
                 {hint.word}
               </span>
               {isLatest && (
-                <span className="text-xs font-medium text-sky-400 whitespace-nowrap">
+                <span className="font-mono text-xs font-bold text-[#FFD21E] whitespace-nowrap">
                   방금 입력
                 </span>
               )}
             </div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-400">
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-white/70">
               <span className={tierTextColor}>{label}</span>
-              <span aria-hidden="true" className="text-slate-600">·</span>
-              <span className="font-mono tabular-nums text-slate-500">
+              <span aria-hidden="true" className="text-white/35">·</span>
+              <span className="font-mono tabular-nums text-white/50">
                 #{hint.order}
               </span>
               {hint.reason && (
                 <>
-                  <span aria-hidden="true" className="text-slate-600">·</span>
-                  <span className="truncate text-slate-300/90">{hint.reason}</span>
+                  <span aria-hidden="true" className="text-white/35">·</span>
+                  <span className="truncate text-white/85">{hint.reason}</span>
                 </>
               )}
             </div>
@@ -84,7 +84,7 @@ export function HintRow({ hint, rank, isLatest, onSelectForGuess }: HintRowProps
             <button
               type="button"
               onClick={() => onSelectForGuess(hint.word)}
-              className="hidden sm:inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-slate-400 opacity-0 transition-opacity duration-150 hover:bg-slate-800 hover:text-slate-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-sky-400 group-hover:opacity-100 whitespace-nowrap shrink-0"
+              className="hidden sm:inline-flex items-center rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2.5 py-1 text-xs font-bold text-white opacity-0 transition-all duration-150 hover:border-[#6B61FF] hover:bg-[#6B61FF] focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[#FFD21E] group-hover:opacity-100 whitespace-nowrap shrink-0"
               title="이 단어를 정답 도전 입력창에 채우기"
             >
               정답 도전
@@ -97,7 +97,7 @@ export function HintRow({ hint, rank, isLatest, onSelectForGuess }: HintRowProps
       </div>
 
       <div
-        className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-800/90"
+        className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[#121026]"
         role="progressbar"
         aria-valuenow={Math.round(hint.similarity)}
         aria-valuemin={0}

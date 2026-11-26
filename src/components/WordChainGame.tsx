@@ -25,17 +25,14 @@ import {
   getSimilarityTier,
   type GameMode,
   type GamePhase,
+  type GiveUpResponse,
+  type GuessAnswerResponse,
   type HintEntry,
+  type StartGameResponse,
+  type SubmitHintResponse,
 } from '../types';
 import type { OnlineGameSharedProps, OnlineRole, OnlineWordChainState } from '../types/online';
 import { soundEngine } from '../utils/sound';
-import {
-  generateSoloKoreanNoun,
-  normalizeWord,
-  resolveStoredApiKey,
-  sanitizeDisplayWord,
-  scoreHintWithRubric,
-} from '../utils/wordChainGemini';
 import { GameBoardLayout } from './GameBoardLayout';
 import { HintRow } from './HintRow';
 import { ResultSummary } from './ResultSummary';
@@ -43,24 +40,64 @@ import { StartScreen } from './StartScreen';
 import { VictoryConfetti } from './VictoryConfetti';
 
 const ONLINE_SHOT_CLOCK_SEC = 45;
+const API_REQUEST_TIMEOUT_MS = 18000;
 
-interface ClientWordSession {
-  mode: GameMode;
-  targetWord: string;
-  targetNormalized: string;
-  hintCount: number;
-  answerAttempts: number;
-  hintsByNormalized: Map<string, HintEntry>;
-  finished: boolean;
+function sanitizeDisplayWord(raw: string): string {
+  return raw.trim().replace(/\s+/g, ' ');
+}
+
+async function postGameApi<T>(
+  url: string,
+  body: Record<string, unknown>,
+  timeoutMs = API_REQUEST_TIMEOUT_MS,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    const rawText = await res.text();
+    let parsed: (T & { error?: unknown }) | null = null;
+    try {
+      parsed = JSON.parse(rawText) as T & { error?: unknown };
+    } catch {
+      throw new Error(
+        `[HTTP ${res.status}] 서버 응답이 올바른 JSON 형식이 아닙니다. 백엔드 서버 상태를 확인해 주세요.`,
+      );
+    }
+
+    if (!res.ok) {
+      const serverMsg =
+        parsed && typeof parsed.error === 'string' && parsed.error.trim()
+          ? parsed.error.trim()
+          : `요청 처리에 실패했습니다.`;
+      throw new Error(
+        serverMsg.startsWith('[HTTP ') ? serverMsg : `[HTTP ${res.status}] ${serverMsg}`,
+      );
+    }
+
+    return parsed;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('요청 시간이 초과되었습니다 (18초). 다시 시도해 주세요.');
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 interface WordChainGameProps extends OnlineGameSharedProps {
-  customApiKey: string;
   onBackToLobby: () => void;
 }
 
 export function WordChainGame({
-  customApiKey,
   onBackToLobby,
   isPaused = false,
   onlineRoom,
@@ -106,11 +143,10 @@ export function WordChainGame({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorToast, setErrorToast] = useState<string | null>(null);
 
-  // Online shot clock + client-side session refs
+  // Online shot clock + server session ref
   const [shotClock, setShotClock] = useState<number>(ONLINE_SHOT_CLOCK_SEC);
   const [isRematching, setIsRematching] = useState(false);
-  const localSessionRef = useRef<ClientWordSession | null>(null);
-  const hostSessionRef = useRef<ClientWordSession | null>(null);
+  const hostSessionIdRef = useRef<string | null>(null);
   const initializedRoundRef = useRef<number>(0);
   const processedReqIdRef = useRef<string | null>(null);
   const scoredMatchRef = useRef<string | null>(null);
@@ -168,57 +204,53 @@ export function WordChainGame({
   const startOnlineHostMatch = useCallback(async () => {
     if (!isOnline || !isHost || !onlineRoom) return;
     processedReqIdRef.current = null;
-    hostSessionRef.current = null;
+    hostSessionIdRef.current = null;
     setErrorMessage(null);
     setHintInput('');
     setGuessInput('');
     setGuessFeedback(null);
 
     const stateRef = getRoomGameStateRef(onlineRoom.roomCode, 'wordChain');
-    await fbSet(stateRef, {
-      phase: 'STARTING',
-      maskedCount: 4,
-      currentTurn: firstTurnRole,
-      hints: [],
-      wrongGuesses: [],
-      pendingRequest: null,
-      lastError: null,
-      winner: null,
-      revealedWord: null,
-      hintCount: 0,
-      answerAttempts: 0,
-      roundKey: matchNumber,
-    } satisfies OnlineWordChainState);
-
     try {
-      const apiKey = resolveStoredApiKey(customApiKey);
-      const targetWord = await generateSoloKoreanNoun(apiKey);
-      hostSessionRef.current = {
-        mode: 'solo',
-        targetWord,
-        targetNormalized: normalizeWord(targetWord),
+      await fbSet(stateRef, {
+        phase: 'STARTING',
+        maskedCount: 4,
+        currentTurn: firstTurnRole,
+        hints: [],
+        wrongGuesses: [],
+        pendingRequest: null,
+        lastError: null,
+        winner: null,
+        revealedWord: null,
         hintCount: 0,
         answerAttempts: 0,
-        hintsByNormalized: new Map(),
-        finished: false,
-      };
+        roundKey: matchNumber,
+      } satisfies OnlineWordChainState);
+
+      const started = await postGameApi<StartGameResponse>('/api/game/start', {
+        mode: 'solo',
+      });
+      hostSessionIdRef.current = started.sessionId;
+
       await fbUpdate(stateRef, {
         phase: 'PLAYING',
-        maskedCount: Math.max(2, Math.min(8, targetWord.length)),
+        maskedCount: started.maskedCount,
         currentTurn: firstTurnRole,
         lastError: null,
       });
     } catch (err) {
       const msg =
-        err instanceof Error
-          ? err.message
-          : '방장의 Gemini API 키를 확인해 주세요. 출제에 실패했습니다.';
+        err instanceof Error ? err.message : 'AI 단어 출제에 실패했습니다.';
       showErrorNotice(msg);
-      await fbUpdate(stateRef, {
-        lastError: msg,
-      });
+      try {
+        await fbUpdate(stateRef, {
+          lastError: msg,
+        });
+      } catch {
+        // Ignore secondary RTDB write failure
+      }
     }
-  }, [isOnline, isHost, onlineRoom, matchNumber, firstTurnRole, customApiKey, showErrorNotice]);
+  }, [isOnline, isHost, onlineRoom, matchNumber, firstTurnRole, showErrorNotice]);
 
   // Online Host Initialization for each matchNumber
   useEffect(() => {
@@ -230,18 +262,26 @@ export function WordChainGame({
     void startOnlineHostMatch();
   }, [isOnline, isHost, onlineRoom, onlineWord, matchNumber, startOnlineHostMatch]);
 
-  // Process incoming online requests on Host (for both P1 & P2) directly via Gemini REST API
+  // Process incoming online requests on Host via server /api/game/* routes
   useEffect(() => {
     if (!isOnline || !isHost || !onlineRoom || !onlineWord) return;
     const req = onlineWord.pendingRequest;
     if (!req || req.id === processedReqIdRef.current) return;
-    const hostSession = hostSessionRef.current;
-    if (!hostSession) return;
+
+    const hostSessionId = hostSessionIdRef.current;
+    const stateRef = getRoomGameStateRef(onlineRoom.roomCode, 'wordChain');
+    if (!hostSessionId) {
+      processedReqIdRef.current = req.id;
+      void fbUpdate(stateRef, {
+        pendingRequest: null,
+        lastError: '방장 세션이 초기화되었습니다. 다시 출제를 시도해 주세요.',
+      });
+      return;
+    }
 
     processedReqIdRef.current = req.id;
 
     const processReq = async () => {
-      const stateRef = getRoomGameStateRef(onlineRoom.roomCode, 'wordChain');
       const nextTurn: OnlineRole = req.by === 'P1' ? 'P2' : 'P1';
       const curHints = onlineWord.hints ?? [];
       const curWrong = onlineWord.wrongGuesses ?? [];
@@ -253,52 +293,27 @@ export function WordChainGame({
             throw new Error('힌트 단어를 1~25자 이내로 입력해 주세요.');
           }
 
-          const normalized = normalizeWord(rawWord);
-          const existing = hostSession.hintsByNormalized.get(normalized);
-          if (existing) {
+          const data = await postGameApi<SubmitHintResponse>('/api/game/hint', {
+            sessionId: hostSessionId,
+            word: rawWord,
+          });
+
+          if (data.alreadyTried) {
             await fbUpdate(stateRef, {
               pendingRequest: null,
-              lastError: `'${existing.word}'은(는) 이미 입력된 힌트입니다.`,
+              lastError: `'${data.hint.word}'은(는) 이미 입력된 힌트입니다.`,
             });
             return;
           }
 
-          const isExactMatch = normalized === hostSession.targetNormalized;
-          let similarity = 100;
-          let reason = '정답 단어와 완전 일치';
-
-          if (!isExactMatch) {
-            const apiKey = resolveStoredApiKey(customApiKey);
-            const rubricResult = await scoreHintWithRubric(
-              hostSession.targetWord,
-              rawWord,
-              apiKey,
-            );
-            similarity = rubricResult.score;
-            reason = rubricResult.reason;
-          }
-
-          hostSession.hintCount += 1;
-          const returnedHint: HintEntry = {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            word: rawWord,
-            similarity,
-            rawCosine: Math.round((similarity / 100) * 1000) / 1000,
-            reason,
-            order: hostSession.hintCount,
-            isExactMatch,
-          };
-          hostSession.hintsByNormalized.set(normalized, returnedHint);
-
-          if (returnedHint.isExactMatch) {
-            hostSession.finished = true;
+          if (data.hint.isExactMatch) {
             await fbUpdate(stateRef, {
-              hints: [...curHints, returnedHint],
-              hintCount: hostSession.hintCount,
-              answerAttempts: hostSession.answerAttempts,
+              hints: [...curHints, data.hint],
+              hintCount: data.hintCount,
+              answerAttempts: data.answerAttempts,
               phase: 'RESULT',
               winner: req.by,
-              revealedWord: returnedHint.word,
+              revealedWord: data.hint.word,
               pendingRequest: null,
               lastError: null,
             });
@@ -306,26 +321,27 @@ export function WordChainGame({
           }
 
           await fbUpdate(stateRef, {
-            hints: [...curHints, returnedHint],
-            hintCount: hostSession.hintCount,
-            answerAttempts: hostSession.answerAttempts,
+            hints: [...curHints, data.hint],
+            hintCount: data.hintCount,
+            answerAttempts: data.answerAttempts,
             currentTurn: nextTurn,
             pendingRequest: null,
             lastError: null,
           });
         } else if (req.type === 'guess') {
           const rawWord = sanitizeDisplayWord(req.word);
-          hostSession.answerAttempts += 1;
-          const isCorrect = normalizeWord(rawWord) === hostSession.targetNormalized;
+          const data = await postGameApi<GuessAnswerResponse>('/api/game/guess', {
+            sessionId: hostSessionId,
+            word: rawWord,
+          });
 
-          if (isCorrect) {
-            hostSession.finished = true;
+          if (data.correct) {
             await fbUpdate(stateRef, {
-              hintCount: hostSession.hintCount,
-              answerAttempts: hostSession.answerAttempts,
+              hintCount: data.hintCount,
+              answerAttempts: data.answerAttempts,
               phase: 'RESULT',
               winner: req.by,
-              revealedWord: hostSession.targetWord,
+              revealedWord: data.targetWord ?? rawWord,
               pendingRequest: null,
               lastError: null,
             });
@@ -333,21 +349,23 @@ export function WordChainGame({
             const nextWrong = curWrong.includes(rawWord) ? curWrong : [...curWrong, rawWord];
             await fbUpdate(stateRef, {
               wrongGuesses: nextWrong,
-              hintCount: hostSession.hintCount,
-              answerAttempts: hostSession.answerAttempts,
+              hintCount: data.hintCount,
+              answerAttempts: data.answerAttempts,
               currentTurn: nextTurn,
               pendingRequest: null,
               lastError: `'${rawWord}'은(는) 정답이 아닙니다.`,
             });
           }
         } else if (req.type === 'giveup') {
-          hostSession.finished = true;
+          const data = await postGameApi<GiveUpResponse>('/api/game/give-up', {
+            sessionId: hostSessionId,
+          });
           await fbUpdate(stateRef, {
-            hintCount: hostSession.hintCount,
-            answerAttempts: hostSession.answerAttempts,
+            hintCount: data.hintCount,
+            answerAttempts: data.answerAttempts,
             phase: 'RESULT',
             winner: 'GAVE_UP',
-            revealedWord: hostSession.targetWord,
+            revealedWord: data.targetWord,
             pendingRequest: null,
             lastError: null,
           });
@@ -355,15 +373,38 @@ export function WordChainGame({
       } catch (err) {
         const msg = err instanceof Error ? err.message : '요청 처리 중 오류가 발생했습니다.';
         showErrorNotice(msg);
-        await fbUpdate(stateRef, {
-          pendingRequest: null,
-          lastError: msg,
-        });
+        try {
+          await fbUpdate(stateRef, {
+            pendingRequest: null,
+            lastError: msg,
+          });
+        } catch {
+          // Ignore secondary RTDB write failure
+        }
       }
     };
 
     void processReq();
-  }, [isOnline, isHost, onlineRoom, onlineWord, customApiKey, showErrorNotice]);
+  }, [isOnline, isHost, onlineRoom, onlineWord, showErrorNotice]);
+
+  // Watchdog: prevent stuck pendingRequest in online mode if host timed out or disconnected
+  useEffect(() => {
+    if (!isOnline || !onlineRoom || !onlineWord?.pendingRequest) return;
+    const req = onlineWord.pendingRequest;
+    const ageMs = Date.now() - req.createdAt;
+    const waitMs = Math.max(500, 20000 - ageMs);
+
+    const timer = window.setTimeout(() => {
+      if (isHost || req.by === myRole) {
+        void fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wordChain'), {
+          pendingRequest: null,
+          lastError: '⏱️ 요청 처리 시간이 초과되었습니다. 다시 시도해 주세요.',
+        });
+      }
+    }, waitMs);
+
+    return () => window.clearTimeout(timer);
+  }, [isOnline, isHost, myRole, onlineRoom, onlineWord?.pendingRequest]);
 
   // Play sound & record winner score in online mode when RESULT arrives
   useEffect(() => {
@@ -452,6 +493,7 @@ export function WordChainGame({
 
   const startGame = async (selectedMode: GameMode, customWord?: string) => {
     setErrorMessage(null);
+
     if (selectedMode === 'solo') {
       setIsStartingSolo(true);
     } else {
@@ -459,14 +501,7 @@ export function WordChainGame({
     }
 
     try {
-      const apiKey = resolveStoredApiKey(customApiKey);
-      if (!apiKey) {
-        throw new Error(
-          "Gemini API 키가 등록되지 않았습니다. 상단의 'API 미등록' 버튼을 눌러 개인 API 키를 먼저 등록해 주세요.",
-        );
-      }
-
-      let targetWord = '';
+      const payload: { mode: GameMode; customWord?: string } = { mode: selectedMode };
       if (selectedMode === 'setter') {
         const rawCustom = sanitizeDisplayWord(customWord ?? '');
         if (!rawCustom) {
@@ -475,26 +510,15 @@ export function WordChainGame({
         if (rawCustom.length > 20) {
           throw new Error('정답 단어는 20자 이내로 입력해주세요.');
         }
-        targetWord = rawCustom;
-      } else {
-        targetWord = await generateSoloKoreanNoun(apiKey);
+        payload.customWord = rawCustom;
       }
 
-      const newSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      localSessionRef.current = {
-        mode: selectedMode,
-        targetWord,
-        targetNormalized: normalizeWord(targetWord),
-        hintCount: 0,
-        answerAttempts: 0,
-        hintsByNormalized: new Map(),
-        finished: false,
-      };
+      const data = await postGameApi<StartGameResponse>('/api/game/start', payload);
 
       resetRoundState();
-      setSessionId(newSessionId);
-      setMode(selectedMode);
-      setMaskedCount(Math.max(2, Math.min(8, targetWord.length)));
+      setSessionId(data.sessionId);
+      setMode(data.mode);
+      setMaskedCount(data.maskedCount);
       setPhase('PLAYING');
 
       window.setTimeout(() => {
@@ -512,7 +536,6 @@ export function WordChainGame({
 
   const handleReturnToTitle = () => {
     resetRoundState();
-    localSessionRef.current = null;
     setSessionId(null);
     setPhase('TITLE');
   };
@@ -521,16 +544,22 @@ export function WordChainGame({
     if (!onlineRoom || !myRole || !onlineWord || onlineWord.phase !== 'PLAYING') return;
     if (onlineWord.currentTurn !== myRole || isPaused || onlineWord.pendingRequest) return;
 
-    await fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wordChain'), {
-      pendingRequest: {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        type,
-        by: myRole,
-        word,
-        createdAt: Date.now(),
-      },
-      lastError: null,
-    });
+    try {
+      await fbUpdate(getRoomGameStateRef(onlineRoom.roomCode, 'wordChain'), {
+        pendingRequest: {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type,
+          by: myRole,
+          word,
+          createdAt: Date.now(),
+        },
+        lastError: null,
+      });
+    } catch (err) {
+      showErrorNotice(
+        err instanceof Error ? err.message : '온라인 요청 전송 중 오류가 발생했습니다.',
+      );
+    }
   };
 
   const handleHintSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -545,8 +574,7 @@ export function WordChainGame({
       return;
     }
 
-    const session = localSessionRef.current;
-    if (!sessionId || !session || session.finished || isSubmittingHint || isPaused) return;
+    if (!sessionId || isSubmittingHint || isPaused) return;
 
     if (word.length > 25) {
       showErrorNotice('힌트 단어는 25자 이내로 입력해주세요.');
@@ -558,44 +586,21 @@ export function WordChainGame({
     setIsSubmittingHint(true);
 
     try {
-      const normalized = normalizeWord(word);
-      const existing = session.hintsByNormalized.get(normalized);
-      if (existing) {
-        setLatestHintId(existing.id);
-        setAlreadyTriedNotice(`'${existing.word}'은(는) 이미 입력한 힌트입니다.`);
-        setHintInput('');
-        hintInputRef.current?.focus();
-        return;
-      }
-
-      const isExactMatch = normalized === session.targetNormalized;
-      let similarity = 100;
-      let reason = '정답 단어와 완전 일치';
-
-      if (!isExactMatch) {
-        const apiKey = resolveStoredApiKey(customApiKey);
-        const rubricResult = await scoreHintWithRubric(session.targetWord, word, apiKey);
-        similarity = rubricResult.score;
-        reason = rubricResult.reason;
-      }
-
-      session.hintCount += 1;
-      const returnedHint: HintEntry = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      const data = await postGameApi<SubmitHintResponse>('/api/game/hint', {
+        sessionId,
         word,
-        similarity,
-        rawCosine: Math.round((similarity / 100) * 1000) / 1000,
-        reason,
-        order: session.hintCount,
-        isExactMatch,
-      };
-      session.hintsByNormalized.set(normalized, returnedHint);
+      });
 
-      setHintCount(session.hintCount);
-      setAnswerAttempts(session.answerAttempts);
-      setLatestHintId(returnedHint.id);
-      setHints((prev) => [...prev, returnedHint]);
-      void soundEngine.playHintResult(returnedHint.similarity);
+      setHintCount(data.hintCount);
+      setAnswerAttempts(data.answerAttempts);
+      setLatestHintId(data.hint.id);
+
+      if (data.alreadyTried) {
+        setAlreadyTriedNotice(`'${data.hint.word}'은(는) 이미 입력한 힌트입니다.`);
+      } else {
+        setHints((prev) => [...prev, data.hint]);
+        void soundEngine.playHintResult(data.hint.similarity);
+      }
 
       setHintInput('');
       hintInputRef.current?.focus();
@@ -619,26 +624,25 @@ export function WordChainGame({
       return;
     }
 
-    const session = localSessionRef.current;
-    if (!sessionId || !session || session.finished || isSubmittingGuess || isPaused) return;
+    if (!sessionId || isSubmittingGuess || isPaused) return;
 
     setErrorMessage(null);
     setGuessFeedback(null);
     setIsSubmittingGuess(true);
 
     try {
-      session.answerAttempts += 1;
-      const isCorrect = normalizeWord(word) === session.targetNormalized;
-      const nextTotal = session.hintCount + session.answerAttempts;
+      const data = await postGameApi<GuessAnswerResponse>('/api/game/guess', {
+        sessionId,
+        word,
+      });
 
-      setHintCount(session.hintCount);
-      setAnswerAttempts(session.answerAttempts);
-      setTotalAttempts(nextTotal);
+      setHintCount(data.hintCount);
+      setAnswerAttempts(data.answerAttempts);
+      setTotalAttempts(data.totalAttempts);
 
-      if (isCorrect) {
-        session.finished = true;
+      if (data.correct) {
         void soundEngine.playVictory();
-        setRevealedWord(session.targetWord);
+        setRevealedWord(data.targetWord ?? word);
         setPhase('VICTORY');
       } else {
         void soundEngine.playWrongGuess();
@@ -650,6 +654,10 @@ export function WordChainGame({
         window.setTimeout(() => setShakeGuess(false), 280);
         guessInputRef.current?.focus();
       }
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : '정답 확인 중 오류가 발생했습니다.';
+      showErrorNotice(msg);
     } finally {
       setIsSubmittingGuess(false);
     }
@@ -667,19 +675,24 @@ export function WordChainGame({
       return;
     }
 
-    const session = localSessionRef.current;
-    if (!sessionId || !session || isGivingUp) return;
+    if (!sessionId || isGivingUp) return;
     setErrorMessage(null);
     setIsGivingUp(true);
 
     try {
-      session.finished = true;
-      setRevealedWord(session.targetWord);
-      setHintCount(session.hintCount);
-      setAnswerAttempts(session.answerAttempts);
-      setTotalAttempts(session.hintCount + session.answerAttempts);
+      const data = await postGameApi<GiveUpResponse>('/api/game/give-up', {
+        sessionId,
+      });
+      setRevealedWord(data.targetWord);
+      setHintCount(data.hintCount);
+      setAnswerAttempts(data.answerAttempts);
+      setTotalAttempts(data.totalAttempts);
       setConfirmingGiveUp(false);
       setPhase('GAVE_UP');
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : '포기 처리 중 오류가 발생했습니다.';
+      showErrorNotice(msg);
     } finally {
       setIsGivingUp(false);
     }
@@ -703,39 +716,66 @@ export function WordChainGame({
     }
   };
 
+  const toastBanner = errorToast ? (
+    <div
+      role="alert"
+      className="fixed left-1/2 top-14 z-50 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-2xl border-[3px] border-rose-400 bg-[#1D1B3D] px-4 py-2.5 text-xs font-bold text-rose-200 shadow-[0_6px_0_#15132d]"
+    >
+      <span>{errorToast}</span>
+      <button
+        type="button"
+        onClick={() => setErrorToast(null)}
+        className="shrink-0 rounded-lg border border-rose-400/50 px-1.5 py-0.5 text-[11px] font-bold text-rose-200 hover:bg-rose-500/25"
+      >
+        닫기
+      </button>
+    </div>
+  ) : null;
+
   // Online Preparing screen
   if (isOnline && (!onlineWord || onlineWord.phase === 'STARTING')) {
     return (
-      <div className="flex h-full min-h-[60dvh] flex-col items-center justify-center gap-3 px-4 text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-sky-400" aria-hidden="true" />
-        <p className="text-base font-bold text-slate-100">
-          방장({onlineRoom?.players?.[hostRole]?.nickname ?? hostRole})이 AI 단어를 출제하고 있습니다...
-        </p>
-        {onlineWord?.lastError && (
-          <div className="max-w-md space-y-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
-            <p>{onlineWord.lastError}</p>
-            {isHost && (
+      <>
+        {toastBanner}
+        <div className="flex h-full min-h-[60dvh] flex-col items-center justify-center gap-3 px-4 text-center">
+          <div className="arcade-panel max-w-md space-y-3 rounded-3xl p-6">
+            {!onlineWord?.lastError ? (
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#6B61FF]" aria-hidden="true" />
+            ) : (
+              <Lock className="mx-auto h-8 w-8 text-rose-400" aria-hidden="true" />
+            )}
+            <p className="text-base font-extrabold text-white">
+              {onlineWord?.lastError
+                ? 'AI 단어 출제를 완료하지 못했습니다'
+                : `방장(${onlineRoom?.players?.[hostRole]?.nickname ?? hostRole})이 AI 단어를 출제하고 있습니다...`}
+            </p>
+            {onlineWord?.lastError && (
+              <div className="space-y-2 rounded-2xl border-2 border-rose-400 bg-[#121026] px-4 py-3 text-xs text-rose-200">
+                <p>{onlineWord.lastError}</p>
+                {isHost && (
+                  <button
+                    type="button"
+                    onClick={() => void startOnlineHostMatch()}
+                    className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-[#FFD21E] px-3 py-1.5 text-xs font-extrabold text-[#121026] shadow-[0_3px_0_#9E7D00] hover:bg-[#FF61D2]"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>다시 출제 시도</span>
+                  </button>
+                )}
+              </div>
+            )}
+            {onReturnToWaitingRoom && (
               <button
                 type="button"
-                onClick={() => void startOnlineHostMatch()}
-                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-sky-400 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-sky-300"
+                onClick={onReturnToWaitingRoom}
+                className="mt-2 min-h-10 rounded-2xl border-2 border-[#2B2857] bg-[#121026] px-4 py-2 text-xs font-bold text-white transition-colors hover:border-[#6B61FF] hover:text-[#FFD21E]"
               >
-                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>다시 출제 시도</span>
+                대기실로 돌아가기
               </button>
             )}
           </div>
-        )}
-        {onReturnToWaitingRoom && (
-          <button
-            type="button"
-            onClick={onReturnToWaitingRoom}
-            className="mt-2 min-h-10 rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
-          >
-            대기실로 돌아가기
-          </button>
-        )}
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -752,11 +792,11 @@ export function WordChainGame({
       <div className="h-full overflow-y-auto px-4 py-6 sm:px-6">
         {iWon && <VictoryConfetti />}
         <div className="mx-auto max-w-3xl space-y-5">
-          <section className="rounded-2xl border border-slate-800 bg-[#131926] p-6">
+          <section className="arcade-panel rounded-3xl p-6">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
-                  <Trophy className="h-4 w-4" aria-hidden="true" />
+                <div className="flex items-center gap-2 text-xs font-extrabold text-[#FF61D2]">
+                  <Trophy className="h-4 w-4 text-[#FFD21E]" aria-hidden="true" />
                   <span>
                     {winnerName
                       ? `${winnerName}님이 정답을 맞혀 승리했습니다!`
@@ -764,12 +804,12 @@ export function WordChainGame({
                   </span>
                 </div>
                 <div className="mt-2 flex items-baseline gap-3">
-                  <span className="text-xs text-slate-400">정답 단어</span>
-                  <h1 className="text-3xl font-bold text-slate-50">
+                  <span className="text-xs font-bold text-white/70">정답 단어</span>
+                  <h1 className="font-display text-4xl font-bold text-[#FFD21E]">
                     {onlineWord.revealedWord ?? '—'}
                   </h1>
                 </div>
-                <p className="mt-1.5 text-xs text-slate-400">
+                <p className="mt-1.5 font-mono text-xs text-white/75">
                   힌트 {onlineWord.hintCount}회 · 정답 도전 {onlineWord.answerAttempts}회
                 </p>
               </div>
@@ -780,7 +820,7 @@ export function WordChainGame({
                     type="button"
                     disabled={isRematching}
                     onClick={() => void handleOnlineRematch()}
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-sky-400 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-sky-300 disabled:opacity-60 whitespace-nowrap"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-[#FFD21E] px-4 py-2 text-xs font-extrabold text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:bg-[#FF61D2] hover:shadow-[0_4px_0_#A62983] active:translate-y-[2px] disabled:opacity-60 whitespace-nowrap"
                   >
                     <RotateCcw className="h-4 w-4" aria-hidden="true" />
                     <span>{isRematching ? '준비 중...' : '같은 게임 바로 재대결'}</span>
@@ -790,7 +830,7 @@ export function WordChainGame({
                   <button
                     type="button"
                     onClick={onReturnToWaitingRoom}
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 whitespace-nowrap"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-[#6B61FF] px-4 py-2 text-xs font-bold text-white shadow-[0_4px_0_#433AB5] transition-all hover:bg-[#FF61D2] hover:text-[#121026] hover:shadow-[0_4px_0_#A62983] active:translate-y-[2px] whitespace-nowrap"
                   >
                     <Home className="h-4 w-4" aria-hidden="true" />
                     <span>대기실로 돌아가기</span>
@@ -799,18 +839,18 @@ export function WordChainGame({
               </div>
             </div>
             {!isHost && (
-              <p className="mt-3 text-xs text-slate-400">
+              <p className="mt-3 text-xs text-white/70">
                 방장({onlineRoom?.players?.[hostRole]?.nickname ?? hostRole})이 재대결 또는 대기실 복귀를 선택할 수 있습니다.
               </p>
             )}
           </section>
 
-          <section className="rounded-2xl border border-slate-800 bg-[#131926] p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-200">
+          <section className="arcade-panel rounded-3xl p-5">
+            <h2 className="mb-3 font-display text-lg font-bold text-[#FF61D2]">
               힌트 기록 ({sortedHints.length}개)
             </h2>
             {sortedHints.length === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-400">
+              <p className="py-6 text-center text-xs text-white/65">
                 입력한 힌트 단어가 없습니다.
               </p>
             ) : (
@@ -829,58 +869,64 @@ export function WordChainGame({
   // Local TITLE
   if (!isOnline && phase === 'TITLE') {
     return (
-      <div className="h-full overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
-          <button
-            type="button"
-            onClick={onBackToLobby}
-            className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-400 whitespace-nowrap"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>로비로 돌아가기</span>
-          </button>
+      <>
+        {toastBanner}
+        <div className="h-full overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
+            <button
+              type="button"
+              onClick={onBackToLobby}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] px-3 py-1 text-xs font-bold text-white shadow-[0_3px_0_#15132d] transition-colors hover:border-[#6B61FF] hover:text-[#FFD21E] whitespace-nowrap"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>로비로 돌아가기</span>
+            </button>
+          </div>
+          <StartScreen
+            isStartingSolo={isStartingSolo}
+            isStartingSetter={isStartingSetter}
+            errorMessage={errorMessage}
+            onStartSolo={() => startGame('solo')}
+            onStartSetter={(word) => startGame('setter', word)}
+            onClearError={() => setErrorMessage(null)}
+          />
         </div>
-        <StartScreen
-          isStartingSolo={isStartingSolo}
-          isStartingSetter={isStartingSetter}
-          errorMessage={errorMessage}
-          onStartSolo={() => startGame('solo')}
-          onStartSetter={(word) => startGame('setter', word)}
-          onClearError={() => setErrorMessage(null)}
-        />
-      </div>
+      </>
     );
   }
 
   // Local VICTORY / GAVE_UP
   if (!isOnline && (phase === 'VICTORY' || phase === 'GAVE_UP')) {
     return (
-      <div className="h-full overflow-y-auto">
-        {phase === 'VICTORY' && <VictoryConfetti />}
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
-          <button
-            type="button"
-            onClick={handleReturnToTitle}
-            className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>모드 선택으로</span>
-          </button>
+      <>
+        {toastBanner}
+        <div className="h-full overflow-y-auto">
+          {phase === 'VICTORY' && <VictoryConfetti />}
+          <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 pt-4 sm:px-6">
+            <button
+              type="button"
+              onClick={handleReturnToTitle}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] px-3 py-1 text-xs font-bold text-white shadow-[0_3px_0_#15132d] transition-colors hover:border-[#6B61FF] hover:text-[#FFD21E] whitespace-nowrap"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>모드 선택으로</span>
+            </button>
+          </div>
+          <ResultSummary
+            won={phase === 'VICTORY'}
+            mode={mode}
+            targetWord={revealedWord}
+            hintCount={hintCount}
+            answerAttempts={answerAttempts}
+            totalAttempts={totalAttempts}
+            sortedHints={sortedHints}
+            wrongGuesses={wrongGuesses}
+            isStartingSolo={isStartingSolo}
+            onPlaySoloAgain={() => startGame('solo')}
+            onReturnToTitle={handleReturnToTitle}
+          />
         </div>
-        <ResultSummary
-          won={phase === 'VICTORY'}
-          mode={mode}
-          targetWord={revealedWord}
-          hintCount={hintCount}
-          answerAttempts={answerAttempts}
-          totalAttempts={totalAttempts}
-          sortedHints={sortedHints}
-          wrongGuesses={wrongGuesses}
-          isStartingSolo={isStartingSolo}
-          onPlaySoloAgain={() => startGame('solo')}
-          onReturnToTitle={handleReturnToTitle}
-        />
-      </div>
+      </>
     );
   }
 
@@ -891,22 +937,6 @@ export function WordChainGame({
   const pendingOnlineCall = Boolean(isOnline && onlineWord?.pendingRequest);
   const displayError = isOnline ? (onlineWord?.lastError ?? errorMessage) : errorMessage;
 
-  const toastBanner = errorToast ? (
-    <div
-      role="alert"
-      className="fixed left-1/2 top-14 z-50 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-xl border border-rose-500/60 bg-[#1A1320]/95 px-4 py-2.5 text-xs font-semibold text-rose-200 shadow-2xl backdrop-blur-md"
-    >
-      <span>{errorToast}</span>
-      <button
-        type="button"
-        onClick={() => setErrorToast(null)}
-        className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-rose-300 hover:bg-rose-500/20"
-      >
-        닫기
-      </button>
-    </div>
-  ) : null;
-
   return (
     <>
       {toastBanner}
@@ -914,36 +944,36 @@ export function WordChainGame({
         scrollableMain
       onlineReactionBar={onlineReactionBar}
       topBar={
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-[3px] border-[#2B2857] bg-[#1D1B3D] px-3 py-2 shadow-[0_4px_0_#15132d] sm:px-4">
           <div className="flex items-center gap-2.5">
             {!isOnline && (
               <button
                 type="button"
                 onClick={handleReturnToTitle}
                 aria-label="모드 선택으로"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/80 text-slate-300 transition-colors hover:bg-slate-800"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl border-2 border-[#2B2857] bg-[#121026] text-white transition-colors hover:border-[#6B61FF] hover:text-[#FFD21E]"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
             <div className="flex items-center gap-2">
-              <Lock className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
-              <span className="text-xs font-bold text-slate-100 sm:text-sm">말결</span>
-              <span className="flex items-center gap-1 rounded-md border border-slate-800 bg-[#0B0F17] px-2 py-0.5">
+              <Lock className="h-3.5 w-3.5 text-[#6B61FF]" aria-hidden="true" />
+              <span className="font-display text-base font-bold text-[#FFD21E] sm:text-lg">말결</span>
+              <span className="flex items-center gap-1 rounded-lg border-2 border-[#2B2857] bg-[#121026] px-2 py-0.5">
                 {Array.from({ length: Math.min(6, Math.max(4, activeMaskedCount)) }).map((_, i) => (
                   <span
                     key={i}
-                    className="h-1.5 w-1.5 rounded-full bg-slate-400"
+                    className="h-1.5 w-1.5 rounded-full bg-[#FF61D2]"
                     aria-hidden="true"
                   />
                 ))}
               </span>
               {isOnline && (
                 <span
-                  className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                  className={`rounded-lg border px-2 py-0.5 text-[11px] font-extrabold ${
                     isMyOnlineTurn
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'bg-slate-800 text-slate-300'
+                      ? 'border-[#FF61D2] bg-[#FF61D2] text-[#121026]'
+                      : 'border-[#2B2857] bg-[#121026] text-white/75'
                   }`}
                 >
                   {isMyOnlineTurn ? '내 차례' : `${onlineTurnNickname} 차례`}
@@ -952,29 +982,29 @@ export function WordChainGame({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-white/75">
             {!isOnline && (
               <>
-                <span className="hidden sm:inline">
+                <span className="hidden font-bold sm:inline">
                   {mode === 'solo' ? '솔로 모드' : '출제자 모드'}
                 </span>
-                <span aria-hidden="true" className="hidden sm:inline text-slate-600">·</span>
+                <span aria-hidden="true" className="hidden sm:inline text-white/35">·</span>
               </>
             )}
-            <span className="font-mono tabular-nums text-slate-200">힌트 {activeHintCount}</span>
-            <span aria-hidden="true" className="text-slate-600">·</span>
-            <span className="font-mono tabular-nums text-slate-200">
+            <span className="font-mono font-bold tabular-nums text-white">힌트 {activeHintCount}</span>
+            <span aria-hidden="true" className="text-white/35">·</span>
+            <span className="font-mono font-bold tabular-nums text-white">
               도전 {activeAnswerAttempts}
             </span>
             {isOnline && (
-              <div className="ml-1 flex items-center gap-1 rounded-lg border border-slate-800 bg-[#0B0F17] px-2 py-0.5">
+              <div className="ml-1 flex items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2 py-0.5">
                 <Clock
-                  className={`h-3 w-3 ${shotClock <= 10 ? 'text-rose-400' : 'text-sky-400'}`}
+                  className={`h-3 w-3 ${shotClock <= 10 ? 'text-rose-400' : 'text-[#FFD21E]'}`}
                   aria-hidden="true"
                 />
                 <span
-                  className={`font-mono text-xs font-bold tabular-nums ${
-                    shotClock <= 10 ? 'text-rose-400' : 'text-slate-100'
+                  className={`font-mono text-xs font-extrabold tabular-nums ${
+                    shotClock <= 10 ? 'text-rose-400' : 'text-white'
                   }`}
                 >
                   {shotClock}s
@@ -988,13 +1018,13 @@ export function WordChainGame({
         displayError ? (
           <div
             role="alert"
-            className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200"
+            className="rounded-2xl border-2 border-rose-400 bg-[#1D1B3D] px-3 py-2 text-xs font-bold text-rose-200"
           >
             {displayError}
           </div>
         ) : isOnline && !isMyOnlineTurn ? (
-          <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/70 px-3 py-1.5 text-xs font-semibold text-slate-200">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-400" aria-hidden="true" />
+          <div className="flex items-center gap-2 rounded-2xl border-2 border-[#2B2857] bg-[#1D1B3D] px-3 py-1.5 text-xs font-bold text-white">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#6B61FF]" aria-hidden="true" />
             <span>
               {pendingOnlineCall
                 ? 'AI 채점 요청을 처리하는 중...'
@@ -1006,36 +1036,36 @@ export function WordChainGame({
       boardArea={
         <div className="flex flex-col gap-2.5 pb-1">
           {latestHint && (
-            <div className="shrink-0 rounded-xl border border-sky-500/35 bg-[#131926] px-3.5 py-2.5 sm:px-4 sm:py-3">
+            <div className="shrink-0 rounded-2xl border-[3px] border-[#FF61D2] bg-[#1D1B3D] px-3.5 py-2.5 shadow-[0_6px_0_#15132d] sm:px-4 sm:py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 sm:text-xs">
-                    <span className="font-medium text-sky-400">최근 측정</span>
-                    <span aria-hidden="true" className="text-slate-600">·</span>
-                    <span className="font-mono tabular-nums">{latestHint.rank}위</span>
-                    <span aria-hidden="true" className="text-slate-600">·</span>
+                  <div className="flex items-center gap-1.5 text-[11px] text-white/75 sm:text-xs">
+                    <span className="font-extrabold text-[#FF61D2]">최근 측정</span>
+                    <span aria-hidden="true" className="text-white/35">·</span>
+                    <span className="font-mono font-bold tabular-nums">{latestHint.rank}위</span>
+                    <span aria-hidden="true" className="text-white/35">·</span>
                     <span>{getSimilarityLabel(latestHint.entry.similarity)}</span>
                   </div>
-                  <p className="mt-0.5 truncate text-base font-bold text-slate-100 sm:text-lg">
+                  <p className="mt-0.5 truncate text-base font-extrabold text-white sm:text-lg">
                     {latestHint.entry.word}
                   </p>
                   {latestHint.entry.reason && (
-                    <p className="truncate text-[11px] text-slate-300/90 sm:text-xs">
+                    <p className="truncate text-[11px] text-white/80 sm:text-xs">
                       {latestHint.entry.reason}
                     </p>
                   )}
                   {!isOnline && alreadyTriedNotice && (
-                    <p className="text-[11px] text-amber-300/90">{alreadyTriedNotice}</p>
+                    <p className="text-[11px] font-bold text-[#FFD21E]">{alreadyTriedNotice}</p>
                   )}
                 </div>
 
                 <span
-                  className={`font-mono text-xl font-bold tabular-nums sm:text-2xl ${
+                  className={`font-mono text-xl font-extrabold tabular-nums sm:text-2xl ${
                     getSimilarityTier(latestHint.entry.similarity) === 'high'
-                      ? 'text-emerald-400'
+                      ? 'text-[#FF61D2]'
                       : getSimilarityTier(latestHint.entry.similarity) === 'medium'
-                        ? 'text-amber-300'
-                        : 'text-slate-300'
+                        ? 'text-[#FFD21E]'
+                        : 'text-white/85'
                   }`}
                 >
                   {latestHint.entry.similarity.toFixed(1)}%
@@ -1043,8 +1073,8 @@ export function WordChainGame({
               </div>
 
               {!isOnline && latestHint.entry.isExactMatch && (
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2">
-                  <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-300">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#2B2857] pt-2">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-[#FF61D2]">
                     <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                     정답 단어와 일치합니다!
                   </span>
@@ -1052,7 +1082,7 @@ export function WordChainGame({
                     type="button"
                     onClick={() => submitAnswerChallenge(latestHint.entry.word)}
                     disabled={isSubmittingGuess}
-                    className="min-h-8 rounded-lg bg-emerald-500 px-3 py-1 text-xs font-bold text-slate-950 hover:bg-emerald-400 whitespace-nowrap"
+                    className="min-h-8 rounded-xl bg-[#FFD21E] px-3 py-1 text-xs font-extrabold text-[#121026] shadow-[0_3px_0_#9E7D00] hover:bg-[#FF61D2] whitespace-nowrap"
                   >
                     정답 완료하기
                   </button>
@@ -1062,21 +1092,21 @@ export function WordChainGame({
           )}
 
           <div className="flex items-baseline justify-between gap-2 px-0.5">
-            <h2 className="text-xs font-semibold text-slate-300 sm:text-sm">
+            <h2 className="text-xs font-bold text-white sm:text-sm">
               힌트 유사도 순위{' '}
-              <span className="font-mono font-normal tabular-nums text-slate-400">
+              <span className="font-mono font-bold tabular-nums text-[#FFD21E]">
                 ({sortedHints.length})
               </span>
             </h2>
-            <span className="text-[11px] text-slate-500">높은 유사도 순 자동 정렬</span>
+            <span className="text-[11px] text-white/60">높은 유사도 순 자동 정렬</span>
           </div>
 
           {sortedHints.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-[#131926]/50 px-5 py-10 text-center">
-              <p className="text-sm font-semibold text-slate-200 sm:text-base">
+            <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#2B2857] bg-[#1D1B3D]/70 px-5 py-10 text-center">
+              <p className="text-sm font-extrabold text-[#FFD21E] sm:text-base">
                 첫 번째 힌트 단어를 입력해보세요
               </p>
-              <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-slate-400 sm:text-sm">
+              <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-white/75 sm:text-sm">
                 자연, 음식, 도구, 장소, 감정처럼 넓은 범위의 단어로 시작하면
                 정답의 의미 영역을 빠르게 좁힐 수 있습니다.
               </p>
@@ -1097,16 +1127,16 @@ export function WordChainGame({
         </div>
       }
       controlArea={
-        <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-4">
+        <div className="arcade-panel rounded-2xl p-3 sm:rounded-3xl sm:p-4">
           {/* Mobile Cover (<640px): Compact 2-tab switch */}
-          <div className="mb-2.5 flex items-center gap-1.5 rounded-lg bg-[#0B0F17] p-1 sm:hidden">
+          <div className="mb-2.5 flex items-center gap-1.5 rounded-xl border-2 border-[#2B2857] bg-[#121026] p-1 sm:hidden">
             <button
               type="button"
               onClick={() => setMobileInputTab('hint')}
-              className={`min-h-9 flex-1 rounded-md text-xs font-bold transition-colors ${
+              className={`min-h-9 flex-1 rounded-lg text-xs font-extrabold transition-colors ${
                 mobileInputTab === 'hint'
-                  ? 'bg-sky-400 text-slate-950'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#6B61FF] text-white'
+                  : 'text-white/70 hover:text-white'
               }`}
             >
               힌트 측정
@@ -1114,10 +1144,10 @@ export function WordChainGame({
             <button
               type="button"
               onClick={() => setMobileInputTab('guess')}
-              className={`min-h-9 flex-1 rounded-md text-xs font-bold transition-colors ${
+              className={`min-h-9 flex-1 rounded-lg text-xs font-extrabold transition-colors ${
                 mobileInputTab === 'guess'
-                  ? 'bg-emerald-500 text-slate-950'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#FFD21E] text-[#121026]'
+                  : 'text-white/70 hover:text-white'
               }`}
             >
               정답 도전
@@ -1131,11 +1161,11 @@ export function WordChainGame({
           >
             <label
               htmlFor="hint-word-input"
-              className="hidden text-xs font-semibold text-slate-100 sm:block sm:text-sm"
+              className="hidden text-xs font-extrabold text-[#FF61D2] sm:block sm:text-sm"
             >
               힌트 단어 입력
             </label>
-            <p className="mt-0.5 hidden text-xs text-slate-400 sm:block">
+            <p className="mt-0.5 hidden text-xs text-white/70 sm:block">
               정답과의 의미 유사도(0%~100%)를 측정합니다.
             </p>
             <div className="flex gap-2 sm:mt-2.5">
@@ -1149,7 +1179,7 @@ export function WordChainGame({
                 maxLength={25}
                 autoComplete="off"
                 disabled={isSubmittingHint || pendingOnlineCall || inputsDisabled}
-                className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-700/80 bg-[#0B0F17] px-3.5 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 disabled:opacity-60"
+                className="min-h-11 min-w-0 flex-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-3.5 py-2 text-base text-white placeholder:text-white/40 focus:border-[#6B61FF] focus:outline-none disabled:opacity-60"
               />
               <button
                 type="submit"
@@ -1159,7 +1189,7 @@ export function WordChainGame({
                   inputsDisabled ||
                   hintInput.trim().length === 0
                 }
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-sky-400 px-3.5 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0 sm:px-4 sm:text-sm"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#6B61FF] px-3.5 py-2 text-xs font-extrabold text-white shadow-[0_4px_0_#433AB5] transition-all hover:bg-[#FF61D2] hover:text-[#121026] hover:shadow-[0_4px_0_#A62983] active:translate-y-[2px] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none whitespace-nowrap shrink-0 sm:px-4 sm:text-sm"
               >
                 {isSubmittingHint || pendingOnlineCall ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -1171,7 +1201,7 @@ export function WordChainGame({
             </div>
           </form>
 
-          <hr className="my-4 hidden border-slate-800/90 sm:block" />
+          <hr className="my-4 hidden border-[#2B2857] sm:block" />
 
           {/* Answer Challenge Form */}
           <form
@@ -1182,11 +1212,11 @@ export function WordChainGame({
           >
             <label
               htmlFor="guess-answer-input"
-              className="hidden text-xs font-semibold text-emerald-300 sm:block sm:text-sm"
+              className="hidden text-xs font-extrabold text-[#FFD21E] sm:block sm:text-sm"
             >
               정답 도전
             </label>
-            <p className="mt-0.5 hidden text-xs text-slate-400 sm:block">
+            <p className="mt-0.5 hidden text-xs text-white/70 sm:block">
               정답이 떠올랐다면 아래에 입력해 맞혀보세요.
             </p>
             <div className="flex gap-2 sm:mt-2.5">
@@ -1203,7 +1233,7 @@ export function WordChainGame({
                 maxLength={25}
                 autoComplete="off"
                 disabled={isSubmittingGuess || pendingOnlineCall || inputsDisabled}
-                className="min-h-11 min-w-0 flex-1 rounded-xl border border-emerald-500/35 bg-[#0B0F17] px-3.5 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:opacity-60"
+                className="min-h-11 min-w-0 flex-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-3.5 py-2 text-base text-white placeholder:text-white/40 focus:border-[#FFD21E] focus:outline-none disabled:opacity-60"
               />
               <button
                 type="submit"
@@ -1213,7 +1243,7 @@ export function WordChainGame({
                   inputsDisabled ||
                   guessInput.trim().length === 0
                 }
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0 sm:px-4 sm:text-sm"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#FFD21E] px-3.5 py-2 text-xs font-extrabold text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:bg-[#FF61D2] hover:shadow-[0_4px_0_#A62983] active:translate-y-[2px] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none whitespace-nowrap shrink-0 sm:px-4 sm:text-sm"
               >
                 {isSubmittingGuess || pendingOnlineCall ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -1225,27 +1255,27 @@ export function WordChainGame({
             </div>
 
             {guessFeedback && (
-              <p role="status" className="mt-1.5 text-xs font-medium text-rose-300">
+              <p role="status" className="mt-1.5 text-xs font-bold text-rose-300">
                 {guessFeedback}
               </p>
             )}
 
             {activeWrongGuesses.length > 0 && (
-              <p className="mt-1.5 truncate text-[11px] text-slate-500">
-                오답: <span className="text-slate-400">{activeWrongGuesses.join(' · ')}</span>
+              <p className="mt-1.5 truncate text-[11px] text-white/60">
+                오답: <span className="text-white/85">{activeWrongGuesses.join(' · ')}</span>
               </p>
             )}
           </form>
 
           {/* Give Up & Mobile Criteria Toggle */}
-          <div className="mt-2.5 border-t border-slate-800/80 pt-2.5 sm:mt-4 sm:pt-3.5">
+          <div className="mt-2.5 border-t border-[#2B2857] pt-2.5 sm:mt-4 sm:pt-3.5">
             {!confirmingGiveUp ? (
               <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
                   disabled={inputsDisabled || pendingOnlineCall}
                   onClick={() => setConfirmingGiveUp(true)}
-                  className="inline-flex min-h-8 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-rose-300 disabled:opacity-40 whitespace-nowrap"
+                  className="inline-flex min-h-8 items-center gap-1.5 text-xs font-bold text-white/70 transition-colors hover:text-rose-300 disabled:opacity-40 whitespace-nowrap"
                 >
                   <Flag className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>포기 및 정답 보기</span>
@@ -1255,21 +1285,21 @@ export function WordChainGame({
                   type="button"
                   onClick={() => setShowCriteriaMobile((prev) => !prev)}
                   aria-expanded={showCriteriaMobile}
-                  className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-700/80 bg-[#0B0F17] px-2 py-1 text-[11px] font-medium text-slate-300 hover:border-sky-400/50 sm:hidden whitespace-nowrap"
+                  className="inline-flex min-h-8 items-center gap-1 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-2 py-1 text-[11px] font-bold text-white hover:border-[#6B61FF] sm:hidden whitespace-nowrap"
                 >
-                  <HelpCircle className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
+                  <HelpCircle className="h-3.5 w-3.5 text-[#FFD21E]" aria-hidden="true" />
                   <span>판정 기준</span>
                 </button>
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="text-slate-300">정답을 볼까요?</span>
+                <span className="font-bold text-white">정답을 볼까요?</span>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setConfirmingGiveUp(false)}
                     disabled={isGivingUp}
-                    className="min-h-8 rounded-lg border border-slate-700 px-2.5 py-1 font-medium text-slate-300 hover:bg-slate-800"
+                    className="min-h-8 rounded-xl border-2 border-[#2B2857] px-2.5 py-1 font-bold text-white hover:border-[#6B61FF]"
                   >
                     취소
                   </button>
@@ -1277,7 +1307,7 @@ export function WordChainGame({
                     type="button"
                     onClick={handleGiveUp}
                     disabled={isGivingUp}
-                    className="min-h-8 rounded-lg bg-rose-500/90 px-2.5 py-1 font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+                    className="min-h-8 rounded-xl bg-rose-500 px-2.5 py-1 font-extrabold text-white shadow-[0_3px_0_#9F1239] hover:bg-rose-400 disabled:opacity-60"
                   >
                     {isGivingUp ? '불러오는 중' : '정답 보기'}
                   </button>
@@ -1286,50 +1316,50 @@ export function WordChainGame({
             )}
 
             {showCriteriaMobile && (
-              <div className="mt-2 rounded-lg border border-slate-800 bg-[#0B0F17] p-2.5 text-[11px] sm:hidden">
-                <p className="mb-1.5 font-semibold text-slate-200">유사도 판정 기준</p>
+              <div className="mt-2 rounded-xl border-2 border-[#2B2857] bg-[#121026] p-2.5 text-[11px] sm:hidden">
+                <p className="mb-1.5 font-bold text-[#FFD21E]">유사도 판정 기준</p>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                  <span className="font-mono text-emerald-400">90+ · 핵심 연관어</span>
+                  <span className="font-mono text-[#FF61D2]">90+ · 핵심 연관어</span>
                   <span className="font-mono text-emerald-300">70+ · 밀접한 상황</span>
-                  <span className="font-mono text-amber-300">45+ · 간접 연상</span>
-                  <span className="font-mono text-slate-400">20+ · 약한 · 20- 무관</span>
+                  <span className="font-mono text-[#FFD21E]">45+ · 간접 연상</span>
+                  <span className="font-mono text-white/65">20+ · 약한 · 20- 무관</span>
                 </div>
               </div>
             )}
 
-            <div className="mt-3.5 hidden rounded-xl border border-slate-800/90 bg-[#0B0F17]/90 p-3 sm:block">
+            <div className="mt-3.5 hidden rounded-2xl border-2 border-[#2B2857] bg-[#121026] p-3 sm:block">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-slate-200">유사도 판정 기준</span>
-                <span className="text-[11px] text-slate-500">한국어 연상 채점</span>
+                <span className="text-xs font-extrabold text-[#FFD21E]">유사도 판정 기준</span>
+                <span className="text-[11px] text-white/60">한국어 연상 채점</span>
               </div>
               <dl className="mt-2 space-y-1 text-[11px]">
                 <div className="flex items-center justify-between gap-2">
-                  <dt className="flex items-center gap-1.5 font-medium text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true" />
+                  <dt className="flex items-center gap-1.5 font-bold text-[#FF61D2]">
+                    <span className="h-2 w-2 rounded-full bg-[#FF61D2]" aria-hidden="true" />
                     <span className="font-mono">90+</span>
                   </dt>
-                  <dd className="truncate text-slate-300">핵심 연관어 · 동의어/1순위 짝꿍</dd>
+                  <dd className="truncate text-white/85">핵심 연관어 · 동의어/1순위 짝꿍</dd>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <dt className="flex items-center gap-1.5 font-medium text-emerald-300">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500/80" aria-hidden="true" />
+                  <dt className="flex items-center gap-1.5 font-bold text-emerald-300">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true" />
                     <span className="font-mono">70+</span>
                   </dt>
-                  <dd className="truncate text-slate-300">밀접한 관련 · 같은 범주/상황</dd>
+                  <dd className="truncate text-white/85">밀접한 관련 · 같은 범주/상황</dd>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <dt className="flex items-center gap-1.5 font-medium text-amber-300">
-                    <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden="true" />
+                  <dt className="flex items-center gap-1.5 font-bold text-[#FFD21E]">
+                    <span className="h-2 w-2 rounded-full bg-[#FFD21E]" aria-hidden="true" />
                     <span className="font-mono">45+</span>
                   </dt>
-                  <dd className="truncate text-slate-400">간접 연상 · 공통 속성/배경</dd>
+                  <dd className="truncate text-white/75">간접 연상 · 공통 속성/배경</dd>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <dt className="flex items-center gap-1.5 font-medium text-slate-400">
-                    <span className="h-2 w-2 rounded-full bg-slate-500" aria-hidden="true" />
+                  <dt className="flex items-center gap-1.5 font-bold text-white/65">
+                    <span className="h-2 w-2 rounded-full bg-white/50" aria-hidden="true" />
                     <span className="font-mono">20+ / 20-</span>
                   </dt>
-                  <dd className="truncate text-slate-500">약한 연결 / 의미 무관함</dd>
+                  <dd className="truncate text-white/60">약한 연결 / 의미 무관함</dd>
                 </div>
               </dl>
             </div>

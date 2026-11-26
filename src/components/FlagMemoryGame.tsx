@@ -406,33 +406,33 @@ export function FlagMemoryGame({
           <button
             type="button"
             onClick={onBackToLobby}
-            className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-100 whitespace-nowrap"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border-2 border-[#2B2857] bg-[#1D1B3D] px-3 py-1 text-xs font-bold text-white shadow-[0_3px_0_#15132d] transition-colors hover:border-[#6B61FF] hover:text-[#FFD21E] whitespace-nowrap"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
             <span>로비로 돌아가기</span>
           </button>
-          <span className="text-xs text-slate-500">
+          <span className="font-mono text-xs font-bold text-[#FF61D2]">
             {FLAG_COUNTRIES.length}개국 국기 데이터셋
           </span>
         </div>
 
         <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
           <section className="text-center">
-            <p className="text-xs font-medium text-emerald-400">
-              게임 2 · 순간 시각 기억력 테스트
+            <p className="font-mono text-xs font-bold tracking-wider text-[#6B61FF]">
+              GAME 02 · VISUAL MEMORY
             </p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-50 sm:text-4xl [text-wrap:balance]">
+            <h1 className="arcade-hero-title mt-2 -rotate-1 text-4xl font-bold tracking-tight sm:text-5xl [text-wrap:balance]">
               국기 기억력 테스트
             </h1>
-            <p className="mt-2.5 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
+            <p className="mt-2.5 text-sm leading-relaxed text-white/80 [text-wrap:balance]">
               무작위 10개 국기가 지정한 시간과 횟수만큼 순서대로 지나갑니다.
               모두 본 뒤 5×5 배열의 25개 국기 중 앞서 본 5개 국기를 찾아내세요.
             </p>
           </section>
 
-          <section className="mt-6 rounded-2xl border border-slate-800 bg-[#131926] p-5 sm:p-7">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-              <SlidersHorizontal className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+          <section className="arcade-panel mt-6 rounded-3xl p-5 sm:p-7">
+            <div className="flex items-center gap-2 text-sm font-extrabold text-[#FFD21E]">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
               <span>노출 규칙 설정</span>
             </div>
 
@@ -440,9 +440,9 @@ export function FlagMemoryGame({
               <div>
                 <label
                   htmlFor="flag-seconds-input"
-                  className="flex items-center gap-2 text-sm font-semibold text-slate-200"
+                  className="flex items-center gap-2 text-sm font-bold text-white"
                 >
-                  <Clock className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  <Clock className="h-4 w-4 text-[#FF61D2]" aria-hidden="true" />
                   <span>국기 1개당 노출 시간 (초)</span>
                 </label>
                 <input
@@ -457,7 +457,7 @@ export function FlagMemoryGame({
                     setSecondsPerFlag(Number.isNaN(val) ? 0.5 : val);
                   }}
                   onBlur={() => setSecondsPerFlag(Math.round(safeSeconds * 10) / 10)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] px-4 py-2 font-mono text-lg font-bold tabular-nums text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  className="mt-2 min-h-11 w-full rounded-xl border-2 border-[#2B2857] bg-[#121026] px-4 py-2 font-mono text-lg font-bold tabular-nums text-white focus:border-[#6B61FF] focus:outline-none"
                 />
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {EXPOSURE_TIME_PRESETS.map((preset) => (
@@ -465,10 +465,10 @@ export function FlagMemoryGame({
                       key={preset}
                       type="button"
                       onClick={() => setSecondsPerFlag(preset)}
-                      className={`min-h-8 rounded-lg px-2.5 py-1 font-mono text-xs font-semibold tabular-nums transition-colors ${
+                      className={`min-h-8 rounded-xl border-2 px-2.5 py-1 font-mono text-xs font-extrabold tabular-nums transition-colors ${
                         Math.abs(safeSeconds - preset) < 0.01
-                          ? 'bg-emerald-500 text-slate-950'
-                          : 'border border-slate-700 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
+                          ? 'border-[#FFD21E] bg-[#FFD21E] text-[#121026]'
+                          : 'border-[#2B2857] bg-[#121026] text-white/80 hover:border-[#6B61FF]'
                       }`}
                     >
                       {preset}초
@@ -480,9 +480,9 @@ export function FlagMemoryGame({
               <div>
                 <label
                   htmlFor="flag-cycles-input"
-                  className="flex items-center gap-2 text-sm font-semibold text-slate-200"
+                  className="flex items-center gap-2 text-sm font-bold text-white"
                 >
-                  <Layers className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  <Layers className="h-4 w-4 text-[#FFD21E]" aria-hidden="true" />
                   <span>총 보여지는 사이클 횟수 (회)</span>
                 </label>
                 <input
@@ -497,7 +497,7 @@ export function FlagMemoryGame({
                     setTotalCycles(Number.isNaN(val) ? 3 : val);
                   }}
                   onBlur={() => setTotalCycles(safeCycles)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-700/80 bg-[#0B0F17] px-4 py-2 font-mono text-lg font-bold tabular-nums text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  className="mt-2 min-h-11 w-full rounded-xl border-2 border-[#2B2857] bg-[#121026] px-4 py-2 font-mono text-lg font-bold tabular-nums text-white focus:border-[#FFD21E] focus:outline-none"
                 />
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {CYCLE_PRESETS.map((preset) => (
@@ -505,10 +505,10 @@ export function FlagMemoryGame({
                       key={preset}
                       type="button"
                       onClick={() => setTotalCycles(preset)}
-                      className={`min-h-8 rounded-lg px-2.5 py-1 font-mono text-xs font-semibold tabular-nums transition-colors ${
+                      className={`min-h-8 rounded-xl border-2 px-2.5 py-1 font-mono text-xs font-extrabold tabular-nums transition-colors ${
                         safeCycles === preset
-                          ? 'bg-emerald-500 text-slate-950'
-                          : 'border border-slate-700 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
+                          ? 'border-[#6B61FF] bg-[#6B61FF] text-white'
+                          : 'border-[#2B2857] bg-[#121026] text-white/80 hover:border-[#FFD21E]'
                       }`}
                     >
                       {preset}회
@@ -518,23 +518,23 @@ export function FlagMemoryGame({
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col items-start justify-between gap-2 rounded-xl border border-slate-800 bg-[#0B0F17] px-4 py-3.5 sm:flex-row sm:items-center">
-              <div className="text-xs text-slate-400">
-                <span>총 소요 시간</span>
-                <p className="mt-0.5 font-mono text-xs tabular-nums text-slate-500">
+            <div className="mt-6 flex flex-col items-start justify-between gap-2 rounded-2xl border-2 border-[#2B2857] bg-[#121026] px-4 py-3.5 sm:flex-row sm:items-center">
+              <div className="text-xs text-white/75">
+                <span className="font-bold text-white">총 소요 시간</span>
+                <p className="mt-0.5 font-mono text-xs tabular-nums text-white/60">
                   {safeSeconds.toFixed(1)}초 × 10개 × {safeCycles}회
                 </p>
               </div>
-              <div className="font-mono text-2xl font-bold tabular-nums text-emerald-400">
+              <div className="font-mono text-2xl font-extrabold tabular-nums text-[#FFD21E]">
                 {totalDurationSeconds.toFixed(1)}
-                <span className="ml-1 font-sans text-sm font-semibold text-emerald-300">초</span>
+                <span className="ml-1 font-sans text-sm font-bold text-[#FF61D2]">초</span>
               </div>
             </div>
 
             <button
               type="button"
               onClick={startRound}
-              className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 whitespace-nowrap"
+              className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#FFD21E] px-6 py-3 text-sm font-extrabold text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:bg-[#FF61D2] hover:shadow-[0_4px_0_#A62983] active:translate-y-[2px] whitespace-nowrap"
             >
               <Play className="h-4 w-4" aria-hidden="true" />
               <span>기억력 테스트 시작</span>
@@ -548,13 +548,15 @@ export function FlagMemoryGame({
   if (phase === 'PRELOADING') {
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" aria-hidden="true" />
-        <p className="mt-4 text-base font-semibold text-slate-100">
-          {isOnline ? '온라인 공동 국기 배열을 불러오는 중...' : '국기 이미지를 불러오는 중입니다...'}
-        </p>
-        <p className="mt-1 text-xs text-slate-400">
-          정확한 {safeSeconds.toFixed(1)}초 간격 노출을 위해 미리 준비하고 있습니다.
-        </p>
+        <div className="arcade-panel max-w-md rounded-3xl p-6">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#6B61FF]" aria-hidden="true" />
+          <p className="mt-4 text-base font-extrabold text-white">
+            {isOnline ? '온라인 공동 국기 배열을 불러오는 중...' : '국기 이미지를 불러오는 중입니다...'}
+          </p>
+          <p className="mt-1 text-xs text-white/70">
+            정확한 {safeSeconds.toFixed(1)}초 간격 노출을 위해 미리 준비하고 있습니다.
+          </p>
+        </div>
       </div>
     );
   }
@@ -562,14 +564,14 @@ export function FlagMemoryGame({
   if (!isOnline && phase === 'READY') {
     return (
       <div className="flex h-full flex-col items-center justify-center px-4">
-        <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#131926] p-7 text-center sm:p-9">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
-            <Flag className="h-6 w-6" aria-hidden="true" />
+        <section className="arcade-panel w-full max-w-lg rounded-3xl p-7 text-center sm:p-9">
+          <div className="arcade-icon-box mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFD21E] text-[#121026]">
+            <Flag className="h-7 w-7" aria-hidden="true" />
           </div>
-          <h2 className="mt-4 text-2xl font-bold text-slate-50">
+          <h2 className="mt-4 font-display text-3xl font-bold text-[#FFD21E]">
             국기 노출이 모두 끝났습니다
           </h2>
-          <p className="mt-2.5 text-sm leading-relaxed text-slate-400 [text-wrap:balance]">
+          <p className="mt-2.5 text-sm leading-relaxed text-white/80 [text-wrap:balance]">
             총 {safeCycles}회차({totalDurationSeconds.toFixed(1)}초) 동안 10개의 국기를 확인했습니다.
             다음 5×5 배열(25개 국기)에서 방금 본 국기 중 5개를 찾아 선택하세요.
           </p>
@@ -577,7 +579,7 @@ export function FlagMemoryGame({
           <button
             type="button"
             onClick={() => setPhase('RECALL')}
-            className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 sm:w-auto sm:min-w-48 whitespace-nowrap"
+            className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#FFD21E] px-6 py-3 text-sm font-extrabold text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:bg-[#FF61D2] hover:shadow-[0_4px_0_#A62983] active:translate-y-[2px] sm:w-auto sm:min-w-48 whitespace-nowrap"
           >
             <span>시작</span>
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -602,7 +604,7 @@ export function FlagMemoryGame({
       <GameBoardLayout
         onlineReactionBar={onlineReactionBar}
         topBar={
-          <div className="rounded-xl border border-slate-800 bg-[#131926] px-3 py-2 sm:px-4">
+          <div className="rounded-2xl border-[3px] border-[#2B2857] bg-[#1D1B3D] px-3 py-2 shadow-[0_4px_0_#15132d] sm:px-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 {!isOnline && (
@@ -613,12 +615,12 @@ export function FlagMemoryGame({
                       setPhase('SETUP');
                     }}
                     aria-label="설정 화면으로"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/80 text-slate-300 transition-colors hover:bg-slate-800"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border-2 border-[#2B2857] bg-[#121026] text-white transition-colors hover:border-[#6B61FF] hover:text-[#FFD21E]"
                   >
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   </button>
                 )}
-                <span className="text-xs font-bold text-slate-100 sm:text-sm">
+                <span className="font-display text-base font-bold text-[#FFD21E] sm:text-lg">
                   {phase === 'EXPOSURE'
                     ? '국기 기억 단계'
                     : phase === 'RECALL'
@@ -630,43 +632,43 @@ export function FlagMemoryGame({
               </div>
 
               {phase === 'EXPOSURE' && (
-                <div className="flex items-center gap-3 font-mono text-xs font-bold tabular-nums sm:text-sm">
-                  <span className="text-emerald-400">
+                <div className="flex items-center gap-3 font-mono text-xs font-extrabold tabular-nums sm:text-sm">
+                  <span className="text-[#FF61D2]">
                     {currentCycle}/{safeCycles}회차
                   </span>
-                  <span className="text-sky-400">{currentIndex + 1}/10</span>
+                  <span className="text-[#FFD21E]">{currentIndex + 1}/10</span>
                 </div>
               )}
 
               {phase === 'RECALL' && (
-                <div className="flex items-center gap-2.5 font-mono text-xs font-bold tabular-nums sm:text-sm">
+                <div className="flex items-center gap-2.5 font-mono text-xs font-extrabold tabular-nums sm:text-sm">
                   {isOnline && (
-                    <span className="text-slate-300">
+                    <span className="text-white">
                       {(recallElapsedMs / 1000).toFixed(1)}s
                     </span>
                   )}
                   <div>
-                    <span className={selectedCodes.length === 5 ? 'text-emerald-400' : 'text-sky-400'}>
+                    <span className={selectedCodes.length === 5 ? 'text-[#FF61D2]' : 'text-[#FFD21E]'}>
                       {selectedCodes.length}
                     </span>
-                    <span className="text-slate-500"> / 5 선택</span>
+                    <span className="text-white/60"> / 5 선택</span>
                   </div>
                 </div>
               )}
 
               {phase === 'RESULT' && (
-                <div className="flex items-center gap-2.5 font-mono text-xs font-bold tabular-nums">
+                <div className="flex items-center gap-2.5 font-mono text-xs font-extrabold tabular-nums">
                   <span className="text-emerald-400">정답 {resultStats.hits}</span>
                   <span className="text-rose-400">오답 {resultStats.wrong}</span>
-                  <span className="text-amber-300">놓침 {resultStats.missed}</span>
+                  <span className="text-[#FFD21E]">놓침 {resultStats.missed}</span>
                 </div>
               )}
             </div>
 
             {phase === 'EXPOSURE' && (
-              <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-800">
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#121026]">
                 <div
-                  className="h-full w-full origin-left rounded-full bg-emerald-400 transition-transform duration-150 ease-out"
+                  className="h-full w-full origin-left rounded-full bg-[#FF61D2] transition-transform duration-150 ease-out"
                   style={{ transform: `scaleX(${progressRatio})` }}
                 />
               </div>
@@ -675,8 +677,8 @@ export function FlagMemoryGame({
         }
         mainStage={
           phase === 'EXPOSURE' && activeExposureFlag ? (
-            <div className="flex h-full w-full max-w-full items-center justify-center rounded-2xl border border-slate-800 bg-[#131926] p-3 sm:p-6">
-              <div className="flex aspect-[3/2] max-h-full w-full max-w-md items-center justify-center rounded-xl border-2 border-slate-700/80 bg-[#0B0F17] p-1.5 shadow-xl">
+            <div className="arcade-panel flex h-full w-full max-w-full items-center justify-center rounded-3xl p-3 sm:p-6">
+              <div className="flex aspect-[3/2] max-h-full w-full max-w-md items-center justify-center rounded-2xl border-[3px] border-[#FFD21E] bg-[#121026] p-1.5 shadow-[0_6px_0_#9E7D00]">
                 <FlagImage
                   key={`${currentCycle}-${activeExposureFlag.code}`}
                   country={activeExposureFlag}
@@ -686,7 +688,7 @@ export function FlagMemoryGame({
           ) : phase === 'RECALL' ? (
             <SquareBoardBox maxPx={620} className="w-full max-w-full">
               <div
-                className="grid h-full w-full max-w-full grid-cols-5 grid-rows-5 gap-1.5 rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:gap-2 sm:p-3"
+                className="arcade-panel grid h-full w-full max-w-full grid-cols-5 grid-rows-5 gap-1.5 rounded-2xl p-2 sm:gap-2 sm:p-3"
                 role="group"
                 aria-label="5x5 국기 선택 배열"
               >
@@ -703,17 +705,17 @@ export function FlagMemoryGame({
                       disabled={disabled}
                       aria-pressed={isSelected}
                       aria-label={`국기 선택 ${isSelected ? '(선택됨)' : ''}`}
-                      className={`relative flex h-full w-full items-center justify-center rounded-lg border-2 bg-[#0B0F17] p-1.5 transition-all duration-150 focus-visible:outline-2 focus-visible:outline-sky-400 ${
+                      className={`relative flex h-full w-full items-center justify-center rounded-xl border-2 bg-[#121026] p-1.5 transition-all duration-150 focus-visible:outline-2 focus-visible:outline-[#FF61D2] ${
                         isSelected
-                          ? 'border-sky-400 ring-2 ring-sky-400/40 scale-[0.97]'
+                          ? 'border-[#FFD21E] ring-2 ring-[#FFD21E]/50 scale-[0.97]'
                           : disabled
-                            ? 'border-slate-800/70 opacity-40 cursor-not-allowed'
-                            : 'border-slate-800 hover:border-slate-600'
+                            ? 'border-[#2B2857]/60 opacity-40 cursor-not-allowed'
+                            : 'border-[#2B2857] hover:border-[#6B61FF]'
                       }`}
                     >
                       <FlagImage country={flag} />
                       {isSelected && (
-                        <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md bg-sky-400 font-mono text-[11px] font-bold text-slate-950 shadow">
+                        <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md bg-[#FFD21E] font-mono text-[11px] font-extrabold text-[#121026] shadow">
                           {selectionOrder}
                         </span>
                       )}
@@ -725,7 +727,7 @@ export function FlagMemoryGame({
           ) : (
             <SquareBoardBox maxPx={620} className="w-full max-w-full">
               <div
-                className="grid h-full w-full max-w-full grid-cols-5 grid-rows-5 gap-1 rounded-2xl border border-slate-800 bg-[#131926] p-2 sm:gap-1.5 sm:p-3"
+                className="arcade-panel grid h-full w-full max-w-full grid-cols-5 grid-rows-5 gap-1 rounded-2xl p-2 sm:gap-1.5 sm:p-3"
                 aria-label="5x5 국기 채점 결과 배열"
               >
                 {gridFlags.map((flag) => {
@@ -744,7 +746,7 @@ export function FlagMemoryGame({
                         ? 'border-rose-500 bg-rose-500/15'
                         : status === 'missed'
                           ? 'border-amber-400 bg-amber-400/15'
-                          : 'border-slate-800/70 bg-[#0B0F17] opacity-35';
+                          : 'border-[#2B2857]/60 bg-[#121026] opacity-35';
 
                   const badgeBg =
                     status === 'hit'
@@ -767,10 +769,10 @@ export function FlagMemoryGame({
                   return (
                     <div
                       key={flag.code}
-                      className={`relative flex h-full w-full items-center justify-center rounded-lg border-2 p-1.5 ${cardStyle}`}
+                      className={`relative flex h-full w-full items-center justify-center rounded-xl border-2 p-1.5 ${cardStyle}`}
                     >
                       <FlagImage country={flag} />
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-md bg-gradient-to-t from-black/85 via-black/55 to-transparent px-1 pb-0.5 pt-2 text-center">
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg bg-gradient-to-t from-black/85 via-black/55 to-transparent px-1 pb-0.5 pt-2 text-center">
                         <span className="block truncate text-[9px] font-semibold text-slate-100 sm:text-[10px]">
                           {flag.nameKo}
                         </span>
@@ -791,13 +793,13 @@ export function FlagMemoryGame({
         }
         controlPanel={
           phase === 'EXPOSURE' ? (
-            <div className="rounded-xl border border-slate-800 bg-[#131926] p-3.5 sm:rounded-2xl sm:p-5">
+            <div className="arcade-panel rounded-2xl p-3.5 sm:rounded-3xl sm:p-5">
               <div className="flex items-center justify-between sm:flex-col sm:items-start sm:gap-3">
                 <div>
-                  <span className="text-[11px] font-medium text-emerald-400 sm:text-xs">
+                  <span className="text-[11px] font-extrabold text-[#FF61D2] sm:text-xs">
                     집중 관찰 중
                   </span>
-                  <p className="mt-0.5 text-xs text-slate-300 sm:text-sm">
+                  <p className="mt-0.5 text-xs text-white/85 sm:text-sm">
                     국기의 색상과 문양을 기억하세요 ({safeSeconds.toFixed(1)}초/장)
                   </p>
                 </div>
@@ -808,7 +810,7 @@ export function FlagMemoryGame({
                       clearTimer();
                       setPhase('SETUP');
                     }}
-                    className="min-h-9 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 whitespace-nowrap"
+                    className="min-h-9 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-3 py-1.5 text-xs font-bold text-white hover:border-[#6B61FF] hover:text-[#FFD21E] whitespace-nowrap"
                   >
                     중단
                   </button>
@@ -816,10 +818,10 @@ export function FlagMemoryGame({
               </div>
             </div>
           ) : phase === 'RECALL' ? (
-            <div className="rounded-xl border border-slate-800 bg-[#131926] p-3 sm:rounded-2xl sm:p-5">
+            <div className="arcade-panel rounded-2xl p-3 sm:rounded-3xl sm:p-5">
               <div className="hidden sm:block">
-                <h3 className="text-sm font-bold text-slate-100">방금 본 국기 5개 선택</h3>
-                <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                <h3 className="text-sm font-extrabold text-[#FFD21E]">방금 본 국기 5개 선택</h3>
+                <p className="mt-1 text-xs leading-relaxed text-white/75">
                   {isOnline
                     ? '정답 수가 같으면 더 빠르게 제출한 플레이어가 승리합니다!'
                     : '25개 국기 중 앞서 등장했던 5개를 골라 제출하세요.'}
@@ -831,10 +833,10 @@ export function FlagMemoryGame({
                   {[0, 1, 2, 3, 4].map((slot) => (
                     <span
                       key={slot}
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg border font-mono text-xs font-bold ${
+                      className={`flex h-7 w-7 items-center justify-center rounded-lg border-2 font-mono text-xs font-extrabold ${
                         slot < selectedCodes.length
-                          ? 'border-sky-400 bg-sky-400 text-slate-950'
-                          : 'border-slate-700 bg-[#0B0F17] text-slate-500'
+                          ? 'border-[#FFD21E] bg-[#FFD21E] text-[#121026]'
+                          : 'border-[#2B2857] bg-[#121026] text-white/50'
                       }`}
                     >
                       {slot + 1}
@@ -848,7 +850,7 @@ export function FlagMemoryGame({
                       type="button"
                       disabled={isPaused}
                       onClick={() => setSelectedCodes([])}
-                      className="min-h-10 rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 whitespace-nowrap"
+                      className="min-h-10 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-3 py-2 text-xs font-bold text-white hover:border-[#6B61FF] whitespace-nowrap"
                     >
                       초기화
                     </button>
@@ -857,7 +859,7 @@ export function FlagMemoryGame({
                     type="button"
                     disabled={selectedCodes.length !== 5 || isPaused}
                     onClick={() => void handleSubmitRecall()}
-                    className="min-h-10 flex-1 rounded-xl bg-emerald-500 px-5 py-2 text-sm font-bold text-slate-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 whitespace-nowrap"
+                    className="min-h-10 flex-1 rounded-2xl bg-[#FFD21E] px-5 py-2 text-sm font-extrabold text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:bg-[#FF61D2] hover:shadow-[0_4px_0_#A62983] active:translate-y-[2px] disabled:cursor-not-allowed disabled:bg-[#121026] disabled:text-white/40 disabled:shadow-none whitespace-nowrap"
                   >
                     제출 ({selectedCodes.length}/5)
                   </button>
@@ -865,12 +867,12 @@ export function FlagMemoryGame({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-[#131926] p-2.5 sm:h-full sm:justify-between sm:gap-3 sm:rounded-2xl sm:p-4">
+            <div className="arcade-panel flex flex-col gap-2 rounded-2xl p-2.5 sm:h-full sm:justify-between sm:gap-3 sm:rounded-3xl sm:p-4">
               {/* Online Comparison Box */}
               {isOnline ? (
-                <div className="shrink-0 space-y-1.5 rounded-xl border border-slate-800 bg-[#0B0F17] p-2.5">
+                <div className="shrink-0 space-y-1.5 rounded-2xl border-2 border-[#2B2857] bg-[#121026] p-2.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-emerald-400">
+                    <span className="font-extrabold text-[#FF61D2]">
                       {!bothSubmitted
                         ? '상대방의 행동을 기다리는 중...'
                         : onlineMatchWinner === 'DRAW'
@@ -879,17 +881,17 @@ export function FlagMemoryGame({
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
-                    <div className="rounded-lg border border-sky-500/30 bg-[#131926] px-2 py-1">
-                      <p className="truncate font-bold text-sky-300">{p1Name}</p>
-                      <p className="font-mono text-slate-200">
+                    <div className="rounded-xl border-2 border-sky-400/50 bg-[#1D1B3D] px-2 py-1">
+                      <p className="truncate font-extrabold text-sky-400">{p1Name}</p>
+                      <p className="font-mono text-white">
                         {sub1
                           ? `${sub1.hits}개 (${(sub1.elapsedMs / 1000).toFixed(1)}s)`
                           : '선택 중...'}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-rose-500/30 bg-[#131926] px-2 py-1">
-                      <p className="truncate font-bold text-rose-300">{p2Name}</p>
-                      <p className="font-mono text-slate-200">
+                    <div className="rounded-xl border-2 border-rose-400/50 bg-[#1D1B3D] px-2 py-1">
+                      <p className="truncate font-extrabold text-rose-300">{p2Name}</p>
+                      <p className="font-mono text-white">
                         {sub2
                           ? `${sub2.hits}개 (${(sub2.elapsedMs / 1000).toFixed(1)}s)`
                           : opponentSubmission
@@ -902,11 +904,11 @@ export function FlagMemoryGame({
               ) : (
                 <div className="hidden shrink-0 sm:block">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                    <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#FFD21E]">
                       <Trophy className="h-4 w-4" aria-hidden="true" />
                       <span>최종 채점 결과</span>
                     </div>
-                    <p className="text-sm font-bold text-slate-50">
+                    <p className="text-sm font-bold text-white">
                       5개 중{' '}
                       <span className="font-mono text-base text-emerald-400">
                         {resultStats.hits}
@@ -915,28 +917,28 @@ export function FlagMemoryGame({
                     </p>
                   </div>
 
-                  <dl className="mt-2 grid grid-cols-3 gap-1.5 rounded-xl border border-slate-800/80 bg-[#0B0F17] py-1.5 text-center">
+                  <dl className="mt-2 grid grid-cols-3 gap-1.5 rounded-2xl border-2 border-[#2B2857] bg-[#121026] py-1.5 text-center">
                     <div>
-                      <dt className="flex items-center justify-center gap-0.5 text-[10px] text-emerald-400">
+                      <dt className="flex items-center justify-center gap-0.5 text-[10px] font-bold text-emerald-400">
                         <Check className="h-3 w-3" aria-hidden="true" />
                         정답
                       </dt>
-                      <dd className="font-mono text-sm font-bold tabular-nums text-slate-100">
+                      <dd className="font-mono text-sm font-extrabold tabular-nums text-white">
                         {resultStats.hits}
                       </dd>
                     </div>
                     <div>
-                      <dt className="flex items-center justify-center gap-0.5 text-[10px] text-rose-400">
+                      <dt className="flex items-center justify-center gap-0.5 text-[10px] font-bold text-rose-400">
                         <X className="h-3 w-3" aria-hidden="true" />
                         오답
                       </dt>
-                      <dd className="font-mono text-sm font-bold tabular-nums text-slate-100">
+                      <dd className="font-mono text-sm font-extrabold tabular-nums text-white">
                         {resultStats.wrong}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[10px] text-amber-300">놓침</dt>
-                      <dd className="font-mono text-sm font-bold tabular-nums text-slate-100">
+                      <dt className="text-[10px] font-bold text-[#FFD21E]">놓침</dt>
+                      <dd className="font-mono text-sm font-extrabold tabular-nums text-white">
                         {resultStats.missed}
                       </dd>
                     </div>
@@ -947,16 +949,16 @@ export function FlagMemoryGame({
               {/* Exposed 10 Flags Review Panel */}
               <div className="min-h-0 flex-1 flex flex-col justify-center">
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <h3 className="text-[11px] font-bold text-slate-200 sm:text-xs">
+                  <h3 className="text-[11px] font-extrabold text-white sm:text-xs">
                     이번 게임 출제 국기 10선
                   </h3>
-                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                  <div className="flex items-center gap-2 text-[10px] text-white/75">
                     <span className="inline-flex items-center gap-1">
                       <span className="h-2 w-2 rounded-xs bg-emerald-400" aria-hidden="true" />
                       정답
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-xs bg-amber-400" aria-hidden="true" />
+                      <span className="h-2 w-2 rounded-xs bg-[#FFD21E]" aria-hidden="true" />
                       출제 놓침
                     </span>
                   </div>
@@ -973,33 +975,33 @@ export function FlagMemoryGame({
                     const isMissed = isTarget && !isSelected;
 
                     const rowTone = isHit
-                      ? 'border-emerald-400/75 bg-emerald-500/15'
+                      ? 'border-emerald-400 bg-emerald-500/15'
                       : isMissed
-                        ? 'border-amber-400/75 bg-amber-500/12'
-                        : 'border-slate-800/90 bg-[#0B0F17]';
+                        ? 'border-[#FFD21E] bg-[#FFD21E]/15'
+                        : 'border-[#2B2857] bg-[#121026]';
 
                     return (
                       <li
                         key={flag.code}
-                        className={`flex flex-col items-center gap-0.5 rounded-lg border px-1 py-1 sm:flex-row sm:gap-2 sm:px-2 sm:py-1.5 ${rowTone}`}
+                        className={`flex flex-col items-center gap-0.5 rounded-xl border px-1 py-1 sm:flex-row sm:gap-2 sm:px-2 sm:py-1.5 ${rowTone}`}
                       >
-                        <span className="hidden w-4 shrink-0 font-mono text-[10px] font-bold tabular-nums text-slate-500 sm:inline">
+                        <span className="hidden w-4 shrink-0 font-mono text-[10px] font-bold tabular-nums text-white/55 sm:inline">
                           {idx + 1}
                         </span>
-                        <div className="relative flex aspect-[3/2] w-8 shrink-0 items-center justify-center rounded-[3px] border border-slate-700/70 bg-slate-900 p-0.5 sm:w-9">
+                        <div className="relative flex aspect-[3/2] w-8 shrink-0 items-center justify-center rounded-[3px] border border-[#2B2857] bg-[#121026] p-0.5 sm:w-9">
                           <FlagImage country={flag} />
-                          <span className="absolute left-0 top-0 rounded-br bg-black/75 px-0.5 font-mono text-[8px] font-bold leading-tight text-slate-200 sm:hidden">
+                          <span className="absolute left-0 top-0 rounded-br bg-black/75 px-0.5 font-mono text-[8px] font-bold leading-tight text-white sm:hidden">
                             {idx + 1}
                           </span>
                         </div>
                         <div className="flex min-w-0 flex-1 items-center justify-between gap-1 w-full sm:w-auto">
-                          <span className="w-full truncate text-center text-[9px] font-semibold leading-tight text-slate-100 sm:text-left sm:text-[11px]">
+                          <span className="w-full truncate text-center text-[9px] font-bold leading-tight text-white sm:text-left sm:text-[11px]">
                             {flag.nameKo}
                           </span>
                           {isHit && (
                             <span
                               title="핵심 정답 적중"
-                              className="hidden shrink-0 rounded bg-emerald-500 px-1 py-0.5 text-[9px] font-extrabold leading-none text-slate-950 sm:inline"
+                              className="hidden shrink-0 rounded bg-emerald-400 px-1 py-0.5 text-[9px] font-extrabold leading-none text-[#121026] sm:inline"
                             >
                               정답
                             </span>
@@ -1007,7 +1009,7 @@ export function FlagMemoryGame({
                           {isMissed && (
                             <span
                               title="핵심 출제 놓침"
-                              className="hidden shrink-0 rounded bg-amber-400 px-1 py-0.5 text-[9px] font-extrabold leading-none text-slate-950 sm:inline"
+                              className="hidden shrink-0 rounded bg-[#FFD21E] px-1 py-0.5 text-[9px] font-extrabold leading-none text-[#121026] sm:inline"
                             >
                               놓침
                             </span>
@@ -1027,7 +1029,7 @@ export function FlagMemoryGame({
                       type="button"
                       disabled={isRematching}
                       onClick={() => void handleOnlineRematch()}
-                      className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 disabled:opacity-60 whitespace-nowrap sm:min-h-10"
+                      className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#FFD21E] px-3 py-1.5 text-xs font-extrabold text-[#121026] shadow-[0_3px_0_#9E7D00] transition-all hover:bg-[#FF61D2] disabled:opacity-60 whitespace-nowrap sm:min-h-10"
                     >
                       <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>{isRematching ? '준비 중' : '같은 게임 바로 재대결'}</span>
@@ -1037,7 +1039,7 @@ export function FlagMemoryGame({
                     <button
                       type="button"
                       onClick={onReturnToWaitingRoom}
-                      className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap sm:min-h-10"
+                      className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#6B61FF] px-3 py-1.5 text-xs font-bold text-white shadow-[0_3px_0_#433AB5] transition-all hover:bg-[#FF61D2] hover:text-[#121026] whitespace-nowrap sm:min-h-10"
                     >
                       <Home className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>대기실로 돌아가기</span>
@@ -1049,7 +1051,7 @@ export function FlagMemoryGame({
                   <button
                     type="button"
                     onClick={startRound}
-                    className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 whitespace-nowrap sm:min-h-10"
+                    className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#FFD21E] px-3 py-1.5 text-xs font-extrabold text-[#121026] shadow-[0_3px_0_#9E7D00] transition-all hover:bg-[#FF61D2] whitespace-nowrap sm:min-h-10"
                   >
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>다시 하기</span>
@@ -1057,14 +1059,14 @@ export function FlagMemoryGame({
                   <button
                     type="button"
                     onClick={() => setPhase('SETUP')}
-                    className="inline-flex min-h-9 items-center justify-center rounded-xl border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 whitespace-nowrap sm:min-h-10 sm:px-3"
+                    className="inline-flex min-h-9 items-center justify-center rounded-2xl border-2 border-[#2B2857] bg-[#121026] px-2.5 py-1.5 text-xs font-bold text-white transition-colors hover:border-[#6B61FF] whitespace-nowrap sm:min-h-10 sm:px-3"
                   >
                     설정
                   </button>
                   <button
                     type="button"
                     onClick={onBackToLobby}
-                    className="inline-flex min-h-9 items-center justify-center rounded-xl border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100 whitespace-nowrap sm:min-h-10 sm:px-3"
+                    className="inline-flex min-h-9 items-center justify-center rounded-2xl border-2 border-[#2B2857] bg-[#121026] px-2.5 py-1.5 text-xs font-bold text-white transition-colors hover:border-[#FFD21E] whitespace-nowrap sm:min-h-10 sm:px-3"
                   >
                     로비로
                   </button>

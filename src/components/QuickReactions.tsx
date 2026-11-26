@@ -27,7 +27,7 @@ export function QuickReactionBar({ roomCode, myNickname }: QuickReactionBarProps
 
   return (
     <div
-      className="grid grid-cols-4 gap-1 rounded-xl border border-slate-800/90 bg-[#131926]/90 p-1.5"
+      className="grid grid-cols-4 gap-1.5 rounded-2xl border-2 border-[#2B2857] bg-[#1D1B3D] p-1.5 shadow-[0_4px_0_#15132d]"
       aria-label="빠른 이모지 리액션"
     >
       {REACTION_PRESETS.map((label) => (
@@ -36,7 +36,7 @@ export function QuickReactionBar({ roomCode, myNickname }: QuickReactionBarProps
           type="button"
           disabled={coolingDown}
           onClick={() => void handleReact(label)}
-          className="min-h-8 rounded-lg border border-slate-800 bg-[#0B0F17] px-1 py-1 text-[11px] font-semibold text-slate-200 transition-all hover:border-sky-400/60 hover:bg-sky-500/10 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+          className="min-h-8 rounded-xl border-2 border-[#2B2857] bg-[#121026] px-1 py-1 text-[11px] font-bold text-white transition-all hover:border-[#6B61FF] hover:bg-[#6B61FF] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
         >
           {label}
         </button>
@@ -78,11 +78,11 @@ export function ReactionToast({ reaction }: ReactionToastProps) {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed left-1/2 top-13 z-40 -translate-x-1/2 px-3"
+      className="pointer-events-none fixed left-1/2 top-14 z-40 -translate-x-1/2 px-3"
     >
-      <div className="flex items-center gap-2 rounded-full border border-sky-400/60 bg-[#131926]/95 px-4 py-1.5 text-xs font-bold text-slate-100 shadow-[0_8px_28px_rgba(0,0,0,0.55)] backdrop-blur-md">
-        <span className="text-sky-300">{visibleReaction.sender}</span>
-        <span className="text-slate-500">:</span>
+      <div className="flex items-center gap-2 rounded-2xl border-[3px] border-[#FFD21E] bg-[#1D1B3D] px-4 py-1.5 text-xs font-bold text-white shadow-[0_6px_0_#15132d]">
+        <span className="text-[#FF61D2]">{visibleReaction.sender}</span>
+        <span className="text-white/50">:</span>
         <span className="text-sm">{visibleReaction.text}</span>
       </div>
     </div>

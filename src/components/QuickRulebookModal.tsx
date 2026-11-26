@@ -82,24 +82,26 @@ export function QuickRulebookModal({ open, game, onClose }: QuickRulebookModalPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#121026]/85 p-4 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-labelledby="quick-rulebook-title"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-slate-700/80 bg-[#131926] p-5 shadow-2xl sm:p-6"
+        className="arcade-panel w-full max-w-md rounded-3xl p-5 sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <HelpCircle className={`h-5 w-5 shrink-0 ${entry.accent}`} aria-hidden="true" />
+          <div className="flex items-center gap-2.5">
+            <div className="arcade-icon-box flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD21E] text-[#121026]">
+              <HelpCircle className="h-5 w-5" aria-hidden="true" />
+            </div>
             <div>
-              <p className="text-[11px] font-semibold text-slate-400">10초 요약 룰북</p>
+              <p className="font-mono text-[11px] font-bold text-[#FFD21E]">10초 요약 룰북</p>
               <h2
                 id="quick-rulebook-title"
-                className="text-base font-bold text-slate-100 sm:text-lg"
+                className="font-display text-xl font-bold text-[#FF61D2] sm:text-2xl"
               >
                 {entry.title}
               </h2>
@@ -110,39 +112,39 @@ export function QuickRulebookModal({ open, game, onClose }: QuickRulebookModalPr
             type="button"
             onClick={onClose}
             aria-label="닫기"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#2B2857] bg-[#121026] text-white transition-colors hover:border-[#6B61FF] hover:bg-[#6B61FF]"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="mt-4 space-y-3 text-xs leading-relaxed text-slate-200 sm:text-sm">
-          <div className="rounded-xl border border-slate-800 bg-[#0B0F17] p-3.5">
-            <p className="mb-1.5 text-[11px] font-bold text-slate-400">핵심 규칙 3줄 요약</p>
-            <ol className="space-y-1.5 text-xs text-slate-200">
+        <div className="mt-4 space-y-3 text-xs leading-relaxed text-white sm:text-sm">
+          <div className="rounded-2xl border-2 border-[#2B2857] bg-[#121026] p-3.5">
+            <p className="mb-1.5 font-mono text-[11px] font-bold text-[#FFD21E]">핵심 규칙 3줄 요약</p>
+            <ol className="space-y-1.5 text-xs text-white/90">
               {entry.summaryLines.map((line, i) => (
                 <li key={i} className="flex items-start gap-2">
-                  <span className={`font-mono font-bold ${entry.accent}`}>{i + 1}.</span>
+                  <span className="font-mono font-bold text-[#FF61D2]">{i + 1}.</span>
                   <span>{line}</span>
                 </li>
               ))}
             </ol>
           </div>
 
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-300">
+          <div className="rounded-2xl border-2 border-[#6B61FF]/70 bg-[#121026] p-3">
+            <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-[#6B61FF]">
               <Trophy className="h-3.5 w-3.5" aria-hidden="true" />
               <span>승리 조건</span>
             </div>
-            <p className="mt-1 text-xs text-slate-200">{entry.victoryCondition}</p>
+            <p className="mt-1 text-xs text-white/90">{entry.victoryCondition}</p>
           </div>
 
-          <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300">
+          <div className="rounded-2xl border-2 border-[#FFD21E]/70 bg-[#121026] p-3">
+            <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-[#FFD21E]">
               <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
               <span>조작 팁</span>
             </div>
-            <p className="mt-1 text-xs text-slate-200">{entry.controlTip}</p>
+            <p className="mt-1 text-xs text-white/90">{entry.controlTip}</p>
           </div>
         </div>
 
@@ -150,7 +152,7 @@ export function QuickRulebookModal({ open, game, onClose }: QuickRulebookModalPr
           <button
             type="button"
             onClick={onClose}
-            className="min-h-10 w-full rounded-xl bg-sky-400 px-5 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-sky-300 sm:w-auto sm:text-sm"
+            className="min-h-10 w-full rounded-2xl bg-[#FFD21E] px-5 py-2 text-xs font-extrabold text-[#121026] shadow-[0_4px_0_#9E7D00] transition-all hover:bg-[#FF61D2] hover:shadow-[0_4px_0_#A62983] active:translate-y-[2px] sm:w-auto sm:text-sm"
           >
             확인
           </button>
